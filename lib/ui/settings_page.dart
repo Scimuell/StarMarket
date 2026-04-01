@@ -1,0 +1,351 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
+import '../db/app_db.dart';
+import '../services/ai_service.dart';
+import '../services/price_catalog_api.dart';
+
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key, required this.db});
+
+  final AppDatabase db;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final _ai = AiService();
+  final _priceApi = PriceCatalogApiService();
+
+  final _base = TextEditingController();
+  final _model = TextEditingController();
+  final _key = TextEditingController();
+
+  final _catUrl = TextEditingController();
+  final _catRootKey = TextEditingController();
+  final _catPatch = TextEditingController();
+  final _catPostBody = TextEditingController();
+  final _catSecret = TextEditingController();
+
+  var _showKey = false;
+  var _showCatSecret = false;
+  var _busy = false;
+  String _catMethod = 'get';
+  String _catAuth = 'none';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    _base.text = await _ai.getBaseUrl();
+    _model.text = await _ai.getModel();
+    final k = await _ai.getApiKey();
+    _key.text = k ?? '';
+
+    _catUrl.text = await _priceApi.getUrl();
+    _catRootKey.text = await _priceApi.getJsonRootKey();
+    _catPatch.text = await _priceApi.getDefaultPatch();
+    _catPostBody.text = await _priceApi.getPostBody();
+    _catMethod = await _priceApi.getMethod();
+    _catAuth = await _priceApi.getAuthMode();
+    final cs = await _priceApi.getSecret();
+    _catSecret.text = cs ?? '';
+
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _base.dispose();
+    _model.dispose();
+    _key.dispose();
+    _catUrl.dispose();
+    _catRootKey.dispose();
+    _catPatch.dispose();
+    _catPostBody.dispose();
+    _catSecret.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveAi() async {
+    await _ai.setBaseUrl(_base.text.trim());
+    await _ai.setModel(_model.text.trim());
+    await _ai.setApiKey(_key.text.trim());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved AI settings.')));
+    }
+  }
+
+  Future<void> _savePriceApi() async {
+    await _priceApi.setUrl(_catUrl.text.trim());
+    await _priceApi.setMethod(_catMethod);
+    await _priceApi.setPostBody(_catPostBody.text);
+    await _priceApi.setJsonRootKey(_catRootKey.text.trim());
+    await _priceApi.setDefaultPatch(_catPatch.text.trim().isEmpty ? '4.7' : _catPatch.text.trim());
+    await _priceApi.setAuthMode(_catAuth);
+    await _priceApi.setSecret(_catSecret.text.trim());
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved price API settings.')));
+    }
+  }
+
+  Future<void> _syncFromPriceApi() async {
+    setState(() => _busy = true);
+    try {
+      await _savePriceApi();
+      final map = await _priceApi.fetchCatalog();
+      await widget.db.importCatalogJson(map);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Catalog synced from your API and saved locally.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _importFile() async {
+    setState(() => _busy = true);
+    try {
+      final r = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['json'],
+      );
+      if (r == null || r.files.isEmpty) return;
+      final f = r.files.single;
+      final path = f.path;
+      final String txt;
+      if (path != null) {
+        txt = await File(path).readAsString();
+      } else if (f.bytes != null) {
+        txt = utf8.decode(f.bytes!);
+      } else {
+        throw StateError('Could not read file (no path/bytes).');
+      }
+      final map = jsonDecode(txt) as Map<String, dynamic>;
+      await widget.db.importCatalogJson(map);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Catalog import complete.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _reloadSeed() async {
+    setState(() => _busy = true);
+    try {
+      final raw = await rootBundle.loadString('assets/catalog_seed.json');
+      await widget.db.importCatalogJson(jsonDecode(raw) as Map<String, dynamic>);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seed catalog merged again.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Seed reload failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: AbsorbPointer(
+        absorbing: _busy,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('AI (OpenAI-compatible)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _base,
+              decoration: const InputDecoration(
+                labelText: 'API base URL',
+                helperText: 'Examples: https://api.openai.com  or http://10.0.2.2:1234 (Android emulator → PC)',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _model,
+              decoration: const InputDecoration(labelText: 'Model name'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _key,
+              obscureText: !_showKey,
+              decoration: InputDecoration(
+                labelText: 'API key',
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _showKey = !_showKey),
+                  icon: Icon(_showKey ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _saveAi,
+              child: const Text('Save AI settings'),
+            ),
+            const SizedBox(height: 24),
+            Text('Price catalog API (your site)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Point this at an HTTP endpoint that returns JSON. The app downloads once per sync and stores rows locally (works offline afterward). '
+              'StarCitizen-API.com puts your key in the path — pick “Key in URL” and use the template below (ships list uses pledge USD, not aUEC).',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _catMethod = 'get';
+                    _catAuth = 'path_key';
+                    _catUrl.text = PriceCatalogApiService.starcitizenApiComShipsCacheUrlTemplate;
+                    _catRootKey.clear();
+                  });
+                },
+                child: const Text('Fill StarCitizen-API.com ships URL (v1/cache/ships)'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _catUrl,
+              decoration: const InputDecoration(
+                labelText: 'Catalog URL',
+                hintText: 'https://example.com/v1/prices.json',
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _catMethod,
+              decoration: const InputDecoration(labelText: 'HTTP method'),
+              items: const [
+                DropdownMenuItem(value: 'get', child: Text('GET')),
+                DropdownMenuItem(value: 'post', child: Text('POST')),
+              ],
+              onChanged: (v) => setState(() => _catMethod = v ?? 'get'),
+            ),
+            if (_catMethod == 'post') ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _catPostBody,
+                minLines: 2,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'POST JSON body (optional)',
+                  alignLabelWithHint: true,
+                  hintText: '{}\nor leave empty',
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _catAuth,
+              decoration: const InputDecoration(labelText: 'API auth'),
+              items: const [
+                DropdownMenuItem(value: 'none', child: Text('None')),
+                DropdownMenuItem(value: 'bearer', child: Text('Authorization: Bearer …')),
+                DropdownMenuItem(value: 'x_api_key', child: Text('X-Api-Key header')),
+                DropdownMenuItem(
+                  value: 'path_key',
+                  child: Text('Key in URL ({apikey}) — StarCitizen-API.com'),
+                ),
+              ],
+              onChanged: (v) => setState(() => _catAuth = v ?? 'none'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _catSecret,
+              obscureText: !_showCatSecret,
+              decoration: InputDecoration(
+                labelText: 'API token / key',
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _showCatSecret = !_showCatSecret),
+                  icon: Icon(_showCatSecret ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _catRootKey,
+              decoration: const InputDecoration(
+                labelText: 'JSON root key (optional)',
+                helperText: 'If the payload is like {"result":{...}}, put: result',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _catPatch,
+              decoration: const InputDecoration(
+                labelText: 'Default patch label',
+                helperText: 'Used if the JSON has no "patch" field',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _savePriceApi,
+                    child: const Text('Save API settings'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _busy ? null : _syncFromPriceApi,
+                    child: const Text('Sync now'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text('Catalog file (offline)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Import a JSON file in the same shape as the API (patch + items with offers), or re-merge the bundled seed.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _importFile,
+              icon: const Icon(Icons.upload_file_outlined),
+              label: const Text('Import catalog JSON…'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _busy ? null : _reloadSeed,
+              child: const Text('Re-import bundled seed (examples only)'),
+            ),
+            if (_busy) const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

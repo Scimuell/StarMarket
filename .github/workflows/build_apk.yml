@@ -1,0 +1,41 @@
+# Builds a release APK on GitHub’s machines (free tier has monthly minutes).
+# After the run finishes: Actions → this workflow → latest run → Artifacts → download ZIP with the APK.
+#
+# Repo layout: this file lives at the root of the Git repository (alongside pubspec.yaml).
+
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android project if missing
+        run: flutter create .
+
+      - run: flutter pub get
+
+      - run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

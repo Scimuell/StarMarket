@@ -35,6 +35,7 @@ class _SettingsPageState extends State<SettingsPage> {
   var _showKey = false;
   var _showCatSecret = false;
   var _busy = false;
+  String _aiProvider = 'openai';
   String _catMethod = 'get';
   String _catAuth = 'none';
 
@@ -45,6 +46,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _load() async {
+    _aiProvider = await _ai.getProvider();
     _base.text = await _ai.getBaseUrl();
     _model.text = await _ai.getModel();
     final k = await _ai.getApiKey();
@@ -76,6 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveAi() async {
+    await _ai.setProvider(_aiProvider);
     await _ai.setBaseUrl(_base.text.trim());
     await _ai.setModel(_model.text.trim());
     await _ai.setApiKey(_key.text.trim());
@@ -175,26 +178,62 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('AI (OpenAI-compatible)', style: Theme.of(context).textTheme.titleMedium),
+            Text('AI (chat)', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _aiProvider,
+              decoration: const InputDecoration(labelText: 'Provider'),
+              items: const [
+                DropdownMenuItem(value: 'openai', child: Text('OpenAI-compatible (Chat Completions)')),
+                DropdownMenuItem(value: 'gemini', child: Text('Google Gemini (Google AI Studio)')),
+              ],
+              onChanged: (v) {
+                setState(() {
+                  _aiProvider = v ?? 'openai';
+                  if (_aiProvider == 'gemini') {
+                    if (_base.text.contains('openai') || _base.text.trim().isEmpty) {
+                      _base.text = AiService.geminiDefaultBase;
+                    }
+                    if (_model.text.toLowerCase().contains('gpt') || _model.text.trim().isEmpty) {
+                      _model.text = 'gemini-2.0-flash';
+                    }
+                  } else {
+                    if (_base.text.contains('generativelanguage.googleapis.com') || _base.text.trim().isEmpty) {
+                      _base.text = AiService.openAiDefaultBase;
+                    }
+                    if (_model.text.toLowerCase().startsWith('gemini')) {
+                      _model.text = 'gpt-4o-mini';
+                    }
+                  }
+                });
+              },
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _base,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'API base URL',
-                helperText: 'Examples: https://api.openai.com  or http://10.0.2.2:1234 (Android emulator → PC)',
+                helperText: _aiProvider == 'gemini'
+                    ? 'Use: ${AiService.geminiDefaultBase}'
+                    : 'Examples: https://api.openai.com or http://10.0.2.2:1234 (emulator → PC)',
               ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _model,
-              decoration: const InputDecoration(labelText: 'Model name'),
+              decoration: InputDecoration(
+                labelText: 'Model name',
+                helperText: _aiProvider == 'gemini'
+                    ? 'e.g. gemini-2.0-flash, gemini-1.5-flash (see Google AI Studio)'
+                    : 'e.g. gpt-4o-mini',
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _key,
               obscureText: !_showKey,
               decoration: InputDecoration(
-                labelText: 'API key',
+                labelText: _aiProvider == 'gemini' ? 'Gemini API key (Google AI Studio)' : 'API key',
                 suffixIcon: IconButton(
                   onPressed: () => setState(() => _showKey = !_showKey),
                   icon: Icon(_showKey ? Icons.visibility_off_outlined : Icons.visibility_outlined),

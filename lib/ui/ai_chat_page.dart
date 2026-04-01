@@ -91,7 +91,7 @@ $logText
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
-            'Assistant uses your imported catalog + recent logs as context. Add an API key under Settings.',
+            'Uses your catalog + recent logs as context. In Settings choose OpenAI-compatible or Google Gemini and add an API key.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),

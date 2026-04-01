@@ -116,7 +116,8 @@ class PriceCatalogApiService {
           'URL must contain the text {apikey} where the key goes (StarCitizen-API.com uses this pattern).',
         );
       }
-      urlResolved = urlTemplate.replaceAll('{apikey}', Uri.encodeComponent(secret));
+      // Star Citizen keys are alphanumeric; do not encode (encoding can break path matching).
+      urlResolved = urlTemplate.replaceAll('{apikey}', secret.trim());
     } else {
       urlResolved = urlTemplate;
     }
@@ -174,8 +175,16 @@ class PriceCatalogApiService {
     if (decoded is Map) {
       final mm = Map<String, dynamic>.from(decoded);
       final ok = mm['success'];
-      if (ok == 0 || ok == false) {
+      if (ok == 0 || ok == false || ok == '0') {
         throw StateError('API reported failure: ${mm['message'] ?? mm['error'] ?? jsonEncode(mm)}');
+      }
+      final isOk = ok == 1 || ok == true || ok == '1';
+      final data = mm['data'];
+      if (isOk && data is List && data.isEmpty) {
+        throw StateError(
+          'Star Citizen API returned an empty ship list. Usually: invalid API key, or cache not populated yet. '
+          'Confirm your key on starcitizen-api.com, or try changing the URL to …/v1/live/ships once (uses daily quota), then back to cache.',
+        );
       }
     }
 
@@ -190,18 +199,22 @@ class PriceCatalogApiService {
   static Map<String, dynamic>? tryNormalizeStarcitizenApiEnvelope(dynamic decoded) {
     if (decoded is! Map) return null;
     final m = Map<String, dynamic>.from(decoded);
-    final ok = m['success'] == 1 || m['success'] == true;
+    final s = m['success'];
+    final ok = s == 1 || s == true || s == '1';
     if (!ok) return null;
     final data = m['data'];
     if (data is! List || data.isEmpty) return null;
     final first = data.first;
     if (first is! Map) return null;
     final fm = Map<String, dynamic>.from(first);
+    // Ship objects always have a name; fields vary by API version.
     final looksLikeShip = fm.containsKey('name') &&
-        (fm.containsKey('scm_speed') ||
+        (fm.containsKey('id') ||
+            fm.containsKey('scm_speed') ||
             fm.containsKey('chassis_id') ||
             fm.containsKey('cargocapacity') ||
-            fm.containsKey('production_status'));
+            fm.containsKey('production_status') ||
+            fm.containsKey('price'));
     if (!looksLikeShip) return null;
 
     final src = m['source']?.toString() ?? 'cache';

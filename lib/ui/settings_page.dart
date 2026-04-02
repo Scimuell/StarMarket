@@ -106,9 +106,10 @@ class _SettingsPageState extends State<SettingsPage> {
       await _savePriceApi();
       final map = await _priceApi.fetchCatalog();
       await widget.db.importCatalogJson(map);
+      final count = await widget.db.catalogItemCount();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Catalog synced from your API and saved locally.')),
+          SnackBar(content: Text('Synced. Catalog now has \$count items. Keys in response: \${map.keys.join(', ')}. First item name: \${(map['items'] as List?)?.isNotEmpty == true ? (map['items'] as List).first['name'] : 'none'}')),
         );
       }
     } catch (e) {

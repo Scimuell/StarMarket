@@ -37,8 +37,10 @@ class _AiChatPageState extends State<AiChatPage> {
     _scrollToEnd();
 
     try {
-      final catalog = await widget.db.catalogContextBlob(maxItems: 80);
-      final logs = await widget.db.recentLogs(limit: 20);
+      final catalogRaw = await widget.db.catalogContextBlob(maxItems: 20);
+      // Trim catalog context to ~2000 chars to stay within free tier token limits
+      final catalog = catalogRaw.length > 2000 ? '${catalogRaw.substring(0, 2000)}\n...(truncated)' : catalogRaw;
+      final logs = await widget.db.recentLogs(limit: 10);
       final logText = logs
           .map((e) => '${e.itemName}: ${e.price} aUEC @ ${e.loggedAt.toIso8601String()} (${e.logType})')
           .join('\n');

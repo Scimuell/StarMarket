@@ -182,17 +182,20 @@ class _ProfitPageState extends State<ProfitPage> {
                                             Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                GestureDetector(
-                                                  onTap: () async {
+                                                IconButton(
+                                                  icon: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                                                  onPressed: () async {
                                                     final ok = await _editTradeDialog(context, widget.db, t);
                                                     if (ok == true) await _reload();
                                                   },
-                                                  child: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                                 ),
-                                                const SizedBox(width: 8),
-                                                GestureDetector(
-                                                  onTap: () => _confirmDelete(context, t),
-                                                  child: Icon(Icons.delete_outline, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                                                IconButton(
+                                                  icon: Icon(Icons.delete_outline, size: 16, color: Theme.of(context).colorScheme.error.withValues(alpha: 0.7)),
+                                                  onPressed: () => _confirmDelete(context, t),
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                                 ),
                                               ],
                                             ),

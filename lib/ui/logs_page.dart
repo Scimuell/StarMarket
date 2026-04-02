@@ -141,8 +141,40 @@ class _LogsPageState extends State<LogsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 8),
-                            Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
+                              onPressed: () async {
+                                final action = await showModalBottomSheet<String>(
+                                  context: context,
+                                  builder: (ctx) => SafeArea(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          leading: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.primary),
+                                          title: const Text('Edit'),
+                                          onTap: () => Navigator.pop(ctx, 'edit'),
+                                        ),
+                                        ListTile(
+                                          leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                                          title: const Text('Delete'),
+                                          onTap: () => Navigator.pop(ctx, 'delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                                if (action == 'edit') {
+                                  final ok = await _showLogDialog(context, widget.db, r);
+                                  if (ok == true) await _reload();
+                                } else if (action == 'delete') {
+                                  await _confirmDelete(context, r);
+                                }
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            ),
                           ],
                         ),
                       ),

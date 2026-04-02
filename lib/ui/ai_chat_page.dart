@@ -47,15 +47,22 @@ class _AiChatPageState extends State<AiChatPage> {
           .where((w) => w.length > 2)
           .toList();
 
-      // Groq free tier: ~6k TPM limit — keep catalog to ~4000 chars (~1000 tokens)
-      // to leave headroom for the conversation + system prompt.
-      // Other providers (OpenAI, local, etc.): use full 10k budget.
+      // Groq free tier: tight TPM limits — when the user has typed keywords
+      // (e.g. "Killshot rifle") we only send matched items, which gives a much
+      // larger effective budget per item and avoids hitting the rate limiter.
+      // When no keywords are present we fall back to a small alphabetical slice.
+      // Other providers (OpenAI, local, Gemini, etc.): use full 20k budget.
       final groq = await _ai.isGroq();
-      final charBudget = groq ? 4000 : 10000;
+      final hasKeywords = keywords.isNotEmpty;
+      // If the user searched for something specific, matched-only mode fits
+      // comfortably under Groq's limit even for large catalogs.
+      final charBudget = groq ? (hasKeywords ? 12000 : 4000) : 20000;
+      final matchedOnly = groq && hasKeywords;
 
       final catalog = await widget.db.catalogContextBlob(
         charBudget: charBudget,
         keywords: keywords,
+        matchedOnly: matchedOnly,
       );
       final logs = await widget.db.recentLogs(limit: 10);
       final logText = logs

@@ -122,7 +122,18 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             top: BorderSide(color: Theme.of(context).colorScheme.outline),
           ),
         ),
-        child: NavigationBar(
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                fontSize: 9,
+                letterSpacing: 0.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              );
+            }),
+          ),
+          child: NavigationBar(
           selectedIndex: _index.clamp(0, 6),
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
@@ -134,6 +145,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'PROFIT'),
             NavigationDestination(icon: Icon(Icons.shield_outlined), selectedIcon: Icon(Icons.shield), label: 'ARMOUR'),
           ],
+        ),
         ),
       ),
     );

@@ -331,6 +331,7 @@ CREATE TABLE trades (
   Future<String> catalogContextBlob({
     int charBudget = 10000,
     List<String> keywords = const [],
+    bool matchedOnly = false,
   }) async {
     // Single query: join items + offers in one round-trip
     const sql = '''
@@ -378,11 +379,15 @@ CREATE TABLE trades (
     }
 
     // Fill budget: matched items first, then pad with alphabetical rest
+    // (unless matchedOnly is true — e.g. Groq with keywords — skip the rest
+    // entirely so we stay well under the token limit).
     final matchedStr = matched.toString();
     final restStr = rest.toString();
 
-    if (matchedChars >= charBudget) {
-      return matchedStr.substring(0, charBudget);
+    if (matchedOnly || matchedChars >= charBudget) {
+      final truncated = matchedStr.length > charBudget ? matchedStr.substring(0, charBudget) : matchedStr;
+      final suffix = matchedStr.length > charBudget ? '\n...(results truncated to fit token limit)' : '';
+      return truncated + suffix;
     }
     final remaining = charBudget - matchedChars;
     final restTrimmed = restChars > remaining ? restStr.substring(0, remaining) : restStr;

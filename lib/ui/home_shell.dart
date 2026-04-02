@@ -44,18 +44,33 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Future<void> _checkAlerts({required String reason}) async {
     final lines = await widget.db.evaluateTriggeredAlerts();
     if (!mounted || lines.isEmpty) return;
+    final cyan = Theme.of(context).colorScheme.primary;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(reason == 'open' ? 'Price alerts' : 'Price alerts (on return)'),
+        title: Text(
+          reason == 'open' ? 'PRICE ALERTS' : 'PRICE ALERTS',
+          style: TextStyle(color: cyan, letterSpacing: 3),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: lines.map((e) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(e))).toList(),
+            children: lines
+                .map((e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('> ', style: TextStyle(color: cyan, fontFamily: 'monospace')),
+                          Expanded(child: Text(e)),
+                        ],
+                      ),
+                    ))
+                .toList(),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('DISMISS')),
         ],
       ),
     );
@@ -76,13 +91,15 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ProfitPage(db: widget.db),
     ];
 
-    const titles = ['Home', 'Catalog', 'Logs', 'Ask AI', 'Alerts', 'Profit'];
+    const titles = ['OVERVIEW', 'MARKET DATA', 'TRADE LOG', 'AI ADVISOR', 'ALERTS', 'PROFIT'];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(titles[_index.clamp(0, 5)]),
+        title: _AppBarTitle(title: titles[_index.clamp(0, 5)]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.tune),
+            tooltip: 'Settings',
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => SettingsPage(db: widget.db)),
@@ -90,24 +107,50 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
               if (mounted) setState(() {});
             },
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: IndexedStack(
         index: _index,
         children: pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index.clamp(0, 5),
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2), label: 'Catalog'),
-          NavigationDestination(icon: Icon(Icons.edit_note_outlined), selectedIcon: Icon(Icons.edit_note), label: 'Logs'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Ask AI'),
-          NavigationDestination(icon: Icon(Icons.notifications_outlined), selectedIcon: Icon(Icons.notifications), label: 'Alerts'),
-          NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Profit'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: Theme.of(context).colorScheme.outline),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index.clamp(0, 5),
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'OVERVIEW'),
+            NavigationDestination(icon: Icon(Icons.dataset_outlined), selectedIcon: Icon(Icons.dataset), label: 'MARKET'),
+            NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'LOG'),
+            NavigationDestination(icon: Icon(Icons.terminal_outlined), selectedIcon: Icon(Icons.terminal), label: 'AI'),
+            NavigationDestination(icon: Icon(Icons.radar_outlined), selectedIcon: Icon(Icons.radar), label: 'ALERTS'),
+            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'PROFIT'),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _AppBarTitle extends StatelessWidget {
+  const _AppBarTitle({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final cyan = Theme.of(context).colorScheme.primary;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 3, height: 16, color: cyan),
+        const SizedBox(width: 8),
+        Text(title),
+      ],
     );
   }
 }

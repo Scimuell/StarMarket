@@ -17,11 +17,17 @@ class _ProfitPageState extends State<ProfitPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cyan = Theme.of(context).colorScheme.primary;
+    final green = const Color(0xFF00FF9C);
+    final red = Theme.of(context).colorScheme.error;
+    final outline = Theme.of(context).colorScheme.outline;
+    final surface = Theme.of(context).colorScheme.surface;
+
     return Scaffold(
       body: FutureBuilder<List<TradeRow>>(
         future: widget.db.allTrades(),
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) return Center(child: CircularProgressIndicator(color: cyan));
           final rows = snap.data!;
           var realized = 0;
           var open = 0;
@@ -32,74 +38,111 @@ class _ProfitPageState extends State<ProfitPage> {
               realized += t.profitAuec() ?? 0;
             }
           }
+          final isProfit = realized >= 0;
+
           return Column(
             children: [
-              Padding(
+              Container(
+                color: surface,
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Realized P/L', style: Theme.of(context).textTheme.labelMedium),
-                              Text(
-                                '${NumberFormat.decimalPattern().format(realized)} aUEC',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ],
-                          ),
-                        ),
+                      child: _StatCard(
+                        label: 'REALIZED P/L',
+                        value: '${isProfit ? '+' : ''}${NumberFormat.decimalPattern().format(realized)}',
+                        unit: 'aUEC',
+                        color: isProfit ? green : red,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Open positions', style: Theme.of(context).textTheme.labelMedium),
-                              Text('$open', style: Theme.of(context).textTheme.titleLarge),
-                            ],
-                          ),
-                        ),
+                      child: _StatCard(
+                        label: 'OPEN',
+                        value: open.toString(),
+                        unit: 'positions',
+                        color: cyan,
                       ),
                     ),
                   ],
                 ),
               ),
+              Divider(height: 1, color: outline),
               Expanded(
                 child: rows.isEmpty
-                    ? const Center(child: Text('No trades yet.'))
-                    : ListView.separated(
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bar_chart, color: Theme.of(context).colorScheme.onSurface, size: 40),
+                            const SizedBox(height: 12),
+                            Text('NO TRADES YET', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, letterSpacing: 2, fontSize: 12)),
+                            const SizedBox(height: 4),
+                            Text('Tap + to log a trade', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
                         itemCount: rows.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, i) {
                           final t = rows[i];
                           final pl = t.profitAuec();
-                          return ListTile(
-                            title: Text(t.itemName),
-                            subtitle: Text(
-                              'Buy ${t.buyQty}×${t.buyAuec} • ${_fmt(t.boughtAt)}\n'
-                              '${t.isOpen ? "Open" : "Sell ${t.sellQty}×${t.sellAuec} • ${_fmt(t.soldAt!)}"}',
-                            ),
-                            isThreeLine: true,
-                            trailing: t.isOpen
-                                ? FilledButton(
-                                    onPressed: () async {
-                                      final ok = await _closeDialog(context, widget.db, t);
-                                      if (ok == true) await _reload();
-                                    },
-                                    child: const Text('Close'),
-                                  )
-                                : Text(
-                                    pl == null ? '—' : '${NumberFormat.decimalPattern().format(pl)} aUEC',
-                                  ),
+                          final plColor = pl == null ? Theme.of(context).colorScheme.onSurface : (pl >= 0 ? green : red);
+                          return Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(width: 2, height: 48, color: t.isOpen ? cyan.withValues(alpha: 0.5) : plColor.withValues(alpha: 0.5)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(t.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'BUY  ${t.buyQty} × ${NumberFormat.decimalPattern().format(t.buyAuec)} aUEC  •  ${_fmt(t.boughtAt)}',
+                                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                          ),
+                                          if (!t.isOpen)
+                                            Text(
+                                              'SELL ${t.sellQty} × ${NumberFormat.decimalPattern().format(t.sellAuec)} aUEC  •  ${_fmt(t.soldAt!)}',
+                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    t.isOpen
+                                        ? FilledButton(
+                                            onPressed: () async {
+                                              final ok = await _closeDialog(context, widget.db, t);
+                                              if (ok == true) await _reload();
+                                            },
+                                            style: FilledButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                              textStyle: const TextStyle(fontSize: 11, letterSpacing: 1),
+                                            ),
+                                            child: const Text('CLOSE'),
+                                          )
+                                        : Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                pl == null ? '—' : '${pl >= 0 ? '+' : ''}${NumberFormat.decimalPattern().format(pl)}',
+                                                style: TextStyle(color: plColor, fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 14),
+                                              ),
+                                              Text('aUEC', style: TextStyle(color: plColor.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1)),
+                                            ],
+                                          ),
+                                  ],
+                                ),
+                              ),
+                              Divider(height: 1, color: outline),
+                            ],
                           );
                         },
                       ),
@@ -118,7 +161,36 @@ class _ProfitPageState extends State<ProfitPage> {
     );
   }
 
-  static String _fmt(DateTime d) => DateFormat.yMMMd().format(d);
+  static String _fmt(DateTime d) => DateFormat('dd MMM yyyy').format(d);
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.label, required this.value, required this.unit, required this.color});
+  final String label;
+  final String value;
+  final String unit;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(value, style: TextStyle(color: color, fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 18)),
+          Text(unit, style: TextStyle(color: color.withValues(alpha: 0.6), fontSize: 10, letterSpacing: 1)),
+        ],
+      ),
+    );
+  }
 }
 
 Future<bool?> _buyDialog(BuildContext context, AppDatabase db) {
@@ -133,40 +205,31 @@ Future<bool?> _buyDialog(BuildContext context, AppDatabase db) {
     builder: (ctx) => StatefulBuilder(
       builder: (context, setLocal) {
         return AlertDialog(
-          title: const Text('Log buy'),
+          title: const Text('LOG BUY'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: item, decoration: const InputDecoration(labelText: 'Item')),
-                TextField(
-                  controller: buy,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Quantity'),
-                ),
-                TextField(
-                  controller: px,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Buy price (aUEC each)'),
-                ),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes (optional)')),
+                TextField(controller: item, decoration: const InputDecoration(labelText: 'COMMODITY')),
+                const SizedBox(height: 8),
+                TextField(controller: buy, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'QUANTITY')),
+                const SizedBox(height: 8),
+                TextField(controller: px, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'BUY PRICE (aUEC each)')),
+                const SizedBox(height: 8),
+                TextField(controller: notes, decoration: const InputDecoration(labelText: 'NOTES (optional)')),
+                const SizedBox(height: 8),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Bought at'),
-                  subtitle: Text(DateFormat.yMMMd().add_jm().format(when)),
+                  title: Text('TIMESTAMP', style: TextStyle(fontSize: 11, letterSpacing: 1, color: Theme.of(context).colorScheme.onSurface)),
+                  subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(when), style: const TextStyle(fontSize: 13)),
                   trailing: IconButton(
-                    icon: const Icon(Icons.edit_calendar_outlined),
+                    icon: Icon(Icons.edit_calendar_outlined, color: Theme.of(context).colorScheme.primary),
                     onPressed: () async {
-                      final d = await showDatePicker(
-                        context: context,
-                        initialDate: when,
-                        firstDate: DateTime(2018),
-                        lastDate: DateTime(2100),
-                      );
+                      final d = await showDatePicker(context: context, initialDate: when, firstDate: DateTime(2018), lastDate: DateTime(2100));
                       if (d == null) return;
                       final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(when));
                       if (t == null) return;
-                      setLocal(() => when = DateTime(d.year, d.month, d.day, t.hour, t.minute));
+                      setLocal(() { when = DateTime(d.year, d.month, d.day, t.hour, t.minute); });
                     },
                   ),
                 ),
@@ -174,25 +237,16 @@ Future<bool?> _buyDialog(BuildContext context, AppDatabase db) {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
             FilledButton(
               onPressed: () async {
                 final qty = int.tryParse(buy.text.trim());
                 final price = int.tryParse(px.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
-                if (item.text.trim().isEmpty || qty == null || price == null) {
-                  Navigator.pop(ctx, false);
-                  return;
-                }
-                await db.insertTrade(
-                  itemName: item.text.trim(),
-                  buyAuec: price,
-                  buyQty: qty,
-                  boughtAt: when,
-                  notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
-                );
+                if (item.text.trim().isEmpty || qty == null || price == null) { Navigator.pop(ctx, false); return; }
+                await db.insertTrade(itemName: item.text.trim(), buyAuec: price, buyQty: qty, boughtAt: when, notes: notes.text.trim().isEmpty ? null : notes.text.trim());
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
-              child: const Text('Save'),
+              child: const Text('CONFIRM'),
             ),
           ],
         );
@@ -211,56 +265,42 @@ Future<bool?> _closeDialog(BuildContext context, AppDatabase db, TradeRow t) {
     builder: (ctx) => StatefulBuilder(
       builder: (context, setLocal) {
         return AlertDialog(
-          title: Text('Close ${t.itemName}'),
+          title: Text('CLOSE — ${t.itemName.toUpperCase()}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: sellQty,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Sell quantity'),
-              ),
-              TextField(
-                controller: sellPx,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Sell price (aUEC each)'),
-              ),
+              TextField(controller: sellQty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'SELL QUANTITY')),
+              const SizedBox(height: 8),
+              TextField(controller: sellPx, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'SELL PRICE (aUEC each)')),
+              const SizedBox(height: 8),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Sold at'),
-                subtitle: Text(DateFormat.yMMMd().add_jm().format(when)),
+                title: Text('TIMESTAMP', style: TextStyle(fontSize: 11, letterSpacing: 1, color: Theme.of(context).colorScheme.onSurface)),
+                subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(when), style: const TextStyle(fontSize: 13)),
                 trailing: IconButton(
-                  icon: const Icon(Icons.edit_calendar_outlined),
+                  icon: Icon(Icons.edit_calendar_outlined, color: Theme.of(context).colorScheme.primary),
                   onPressed: () async {
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: when,
-                      firstDate: DateTime(2018),
-                      lastDate: DateTime(2100),
-                    );
+                    final d = await showDatePicker(context: context, initialDate: when, firstDate: DateTime(2018), lastDate: DateTime(2100));
                     if (d == null) return;
                     final tm = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(when));
                     if (tm == null) return;
-                    setLocal(() => when = DateTime(d.year, d.month, d.day, tm.hour, tm.minute));
+                    setLocal(() { when = DateTime(d.year, d.month, d.day, tm.hour, tm.minute); });
                   },
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
             FilledButton(
               onPressed: () async {
                 final q = int.tryParse(sellQty.text.trim());
                 final p = int.tryParse(sellPx.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
-                if (q == null || p == null) {
-                  Navigator.pop(ctx, false);
-                  return;
-                }
+                if (q == null || p == null) { Navigator.pop(ctx, false); return; }
                 await db.updateTradeSale(id: t.id, sellAuec: p, sellQty: q, soldAt: when);
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
-              child: const Text('Save'),
+              child: const Text('CONFIRM'),
             ),
           ],
         );

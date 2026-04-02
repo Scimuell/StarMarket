@@ -16,31 +16,81 @@ class _AlertsPageState extends State<AlertsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cyan = Theme.of(context).colorScheme.primary;
+    final outline = Theme.of(context).colorScheme.outline;
+
     return Scaffold(
       body: FutureBuilder<List<AlertRow>>(
         future: widget.db.allAlerts(),
         builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snap.hasData) return Center(child: CircularProgressIndicator(color: cyan));
           final rows = snap.data!;
           if (rows.isEmpty) {
-            return const Center(child: Text('No alerts. Add a target and we will check it when you open the app.'));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.radar_outlined, color: Theme.of(context).colorScheme.onSurface, size: 40),
+                  const SizedBox(height: 12),
+                  Text('NO ACTIVE ALERTS', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, letterSpacing: 2, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text('Tap + to set a price target', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11)),
+                ],
+              ),
+            );
           }
-          return ListView.separated(
+          return ListView.builder(
             itemCount: rows.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final r = rows[i];
-              final when = r.fireWhen == 'below_or_equal' ? '≤' : '≥';
-              return ListTile(
-                title: Text(r.itemName),
-                subtitle: Text('Notify when latest log is $when ${r.targetAuec} aUEC'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    await widget.db.deleteAlert(r.id);
-                    await _reload();
-                  },
-                ),
+              final isBuy = r.fireWhen == 'below_or_equal';
+              final condColor = isBuy ? cyan : const Color(0xFF00FF9C);
+              final condLabel = isBuy ? 'BUY TARGET' : 'SELL TARGET';
+              final condSymbol = isBuy ? '≤' : '≥';
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(width: 2, height: 40, color: condColor.withValues(alpha: 0.6)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(r.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: condColor.withValues(alpha: 0.1),
+                                      border: Border.all(color: condColor.withValues(alpha: 0.4)),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                    child: Text(condLabel, style: TextStyle(color: condColor, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text('$condSymbol ${r.targetAuec} aUEC', style: TextStyle(color: condColor, fontSize: 12, fontFamily: 'monospace')),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurface, size: 20),
+                          onPressed: () async {
+                            await widget.db.deleteAlert(r.id);
+                            await _reload();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: outline),
+                ],
               );
             },
           );
@@ -51,7 +101,7 @@ class _AlertsPageState extends State<AlertsPage> {
           final ok = await _showAdd(context, widget.db);
           if (ok == true) await _reload();
         },
-        child: const Icon(Icons.add_alert_outlined),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -67,51 +117,42 @@ Future<bool?> _showAdd(BuildContext context, AppDatabase db) {
     builder: (ctx) => StatefulBuilder(
       builder: (context, setLocal) {
         return AlertDialog(
-          title: const Text('New alert'),
+          title: const Text('NEW ALERT'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: item,
-                decoration: const InputDecoration(
-                  labelText: 'Item name (matches your logs, case-insensitive)',
-                ),
+                decoration: const InputDecoration(labelText: 'ITEM NAME'),
               ),
+              const SizedBox(height: 8),
               TextField(
                 controller: target,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Target aUEC'),
+                decoration: const InputDecoration(labelText: 'TARGET aUEC'),
               ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: mode,
                 items: const [
-                  DropdownMenuItem(
-                    value: 'below_or_equal',
-                    child: Text('Fire when latest log is ≤ target (buy low)'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'above_or_equal',
-                    child: Text('Fire when latest log is ≥ target (sell high)'),
-                  ),
+                  DropdownMenuItem(value: 'below_or_equal', child: Text('ALERT WHEN PRICE ≤ TARGET')),
+                  DropdownMenuItem(value: 'above_or_equal', child: Text('ALERT WHEN PRICE ≥ TARGET')),
                 ],
                 onChanged: (v) => setLocal(() => mode = v ?? 'below_or_equal'),
-                decoration: const InputDecoration(labelText: 'Condition'),
+                decoration: const InputDecoration(labelText: 'CONDITION'),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
             FilledButton(
               onPressed: () async {
                 final t = int.tryParse(target.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
-                if (item.text.trim().isEmpty || t == null) {
-                  Navigator.pop(ctx, false);
-                  return;
-                }
+                if (item.text.trim().isEmpty || t == null) { Navigator.pop(ctx, false); return; }
                 await db.insertAlert(itemName: item.text.trim(), targetAuec: t, fireWhen: mode);
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
-              child: const Text('Save'),
+              child: const Text('SAVE'),
             ),
           ],
         );

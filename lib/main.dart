@@ -66,6 +66,7 @@ class StarcitizenTraderApp extends StatelessWidget {
       cardColor: surface,
       dividerColor: border,
       fontFamily: 'monospace',
+
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         foregroundColor: onBackground,
@@ -84,6 +85,7 @@ class StarcitizenTraderApp extends StatelessWidget {
           statusBarIconBrightness: Brightness.light,
         ),
       ),
+
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
         indicatorColor: const Color(0xFF0A2840),
@@ -100,7 +102,9 @@ class StarcitizenTraderApp extends StatelessWidget {
           return const TextStyle(color: onSurface, fontSize: 11, letterSpacing: 1);
         }),
       ),
-      cardTheme: CardTheme(
+
+      // ✅ FIXED
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -109,11 +113,13 @@ class StarcitizenTraderApp extends StatelessWidget {
         ),
         margin: EdgeInsets.zero,
       ),
+
       listTileTheme: const ListTileThemeData(
         tileColor: Colors.transparent,
         titleTextStyle: TextStyle(color: onBackground, fontSize: 14, fontFamily: 'monospace'),
         subtitleTextStyle: TextStyle(color: onSurface, fontSize: 12, fontFamily: 'monospace'),
       ),
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceVariant,
@@ -137,6 +143,7 @@ class StarcitizenTraderApp extends StatelessWidget {
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
+
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: cyan,
@@ -151,6 +158,7 @@ class StarcitizenTraderApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: cyan,
@@ -165,6 +173,7 @@ class StarcitizenTraderApp extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: cyan,
@@ -176,12 +185,15 @@ class StarcitizenTraderApp extends StatelessWidget {
           ),
         ),
       ),
+
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: cyan,
         foregroundColor: background,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4))),
       ),
-      dialogTheme: DialogTheme(
+
+      // ✅ FIXED
+      dialogTheme: DialogThemeData(
         backgroundColor: surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
@@ -200,6 +212,7 @@ class StarcitizenTraderApp extends StatelessWidget {
           fontFamily: 'monospace',
         ),
       ),
+
       snackBarTheme: SnackBarThemeData(
         backgroundColor: surfaceVariant,
         contentTextStyle: const TextStyle(color: onBackground, fontFamily: 'monospace', fontSize: 12),
@@ -209,6 +222,7 @@ class StarcitizenTraderApp extends StatelessWidget {
         ),
         behavior: SnackBarBehavior.floating,
       ),
+
       dropdownMenuTheme: DropdownMenuThemeData(
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -218,6 +232,7 @@ class StarcitizenTraderApp extends StatelessWidget {
           ),
         ),
       ),
+
       textTheme: const TextTheme(
         titleLarge: TextStyle(color: onBackground, fontFamily: 'monospace', fontWeight: FontWeight.w700, letterSpacing: 1.5),
         titleMedium: TextStyle(color: onBackground, fontFamily: 'monospace', fontWeight: FontWeight.w600, letterSpacing: 1.5),
@@ -229,6 +244,7 @@ class StarcitizenTraderApp extends StatelessWidget {
         labelMedium: TextStyle(color: onSurface, fontFamily: 'monospace', fontSize: 11, letterSpacing: 1),
         labelSmall: TextStyle(color: onSurface, fontFamily: 'monospace', fontSize: 10, letterSpacing: 1),
       ),
+
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: cyan),
       dividerTheme: const DividerThemeData(color: border, thickness: 1, space: 1),
       iconTheme: const IconThemeData(color: onSurface),

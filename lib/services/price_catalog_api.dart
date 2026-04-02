@@ -191,26 +191,57 @@ class PriceCatalogApiService {
       throw StateError('Response is not JSON: $e');
     }
 
+    // Handle explicit API failure
     if (decoded is Map) {
       final mm = Map<String, dynamic>.from(decoded);
       final ok = mm['success'];
       if (ok == 0 || ok == false || ok == '0') {
         throw StateError('API reported failure: ${mm['message'] ?? mm['error'] ?? jsonEncode(mm)}');
       }
-      final isOk = ok == 1 || ok == true || ok == '1';
-      final data = mm['data'];
-      if (isOk && data is List && data.isEmpty) {
-        throw StateError(
-          'Star Citizen API returned an empty ship list. Usually: invalid API key, or cache not populated yet. '
-          'Confirm your key on starcitizen-api.com, or try changing the URL to …/v1/live/ships once (uses daily quota), then back to cache.',
-        );
+    }
+
+    // Try to extract data list from any common envelope shape
+    List<dynamic>? dataList;
+    String sourceLabel = 'cache';
+
+    if (decoded is List) {
+      // Bare array response
+      dataList = decoded;
+    } else if (decoded is Map) {
+      final mm = Map<String, dynamic>.from(decoded);
+      // Try 'data', 'items', or root key
+      final candidate = mm['data'] ?? mm['items'] ?? (rootKey.isNotEmpty ? mm[rootKey] : null);
+      if (candidate is List) {
+        dataList = candidate;
+        sourceLabel = mm['source']?.toString() ?? 'cache';
       }
     }
 
-    final sc = tryNormalizeStarcitizenApiEnvelope(decoded);
-    if (sc != null) return sc;
+    if (dataList == null) {
+      // Show top-level keys to help diagnose
+      final keys = decoded is Map ? (decoded as Map).keys.take(10).join(', ') : decoded.runtimeType.toString();
+      throw StateError('Could not find a data list in API response. Top-level keys: $keys');
+    }
 
-    return normalizeDecoded(decoded, rootKey: rootKey.isEmpty ? null : rootKey, defaultPatch: defaultPatch);
+    if (dataList.isEmpty) {
+      throw StateError(
+        'API returned an empty list. Check your API key at starcitizen-api.com, '
+        'or try /v1/live/ships instead of /v1/cache/ships.',
+      );
+    }
+
+    // Check if it looks like a SC ships payload
+    final firstValid = dataList.firstWhere((e) => e != null && e is Map, orElse: () => null);
+    if (firstValid != null) {
+      final fm = Map<String, dynamic>.from(firstValid as Map);
+      final looksLikeShip = fm.containsKey('name') && fm.keys.length > 2;
+      if (looksLikeShip) {
+        return shipsPayloadToCatalog(dataList, sourceLabel: sourceLabel);
+      }
+    }
+
+    // Fallback: treat as generic catalog items list
+    return {'patch': defaultPatch, 'items': dataList};
   }
 
   /// [starcitizen-api.com](https://starcitizen-api.com/) wraps lists in `{ success, data, source }`.

@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Fetches catalog JSON from **your** price API and normalizes it for [AppDatabase.importCatalogJson].
@@ -152,32 +150,22 @@ class PriceCatalogApiService {
       headers['X-Api-Key'] = secret;
     }
 
-    // Use a custom HttpClient to work around Android DNS lookup failures
-    // that affect Flutter's default HTTP client on some devices/OS versions.
-    final httpClient = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
-    final client = IOClient(httpClient);
-
     final http.Response res;
-    try {
-      if (method == 'post') {
-        final body = await getPostBody();
-        if (body.trim().isNotEmpty) {
-          headers['Content-Type'] = 'application/json';
-          try {
-            jsonDecode(body);
-          } catch (_) {
-            throw StateError('POST body must be valid JSON (or leave empty).');
-          }
-          res = await client.post(uri, headers: headers, body: body.trim());
-        } else {
-          res = await client.post(uri, headers: headers);
+    if (method == 'post') {
+      final body = await getPostBody();
+      if (body.trim().isNotEmpty) {
+        headers['Content-Type'] = 'application/json';
+        try {
+          jsonDecode(body);
+        } catch (_) {
+          throw StateError('POST body must be valid JSON (or leave empty).');
         }
+        res = await http.post(uri, headers: headers, body: body.trim());
       } else {
-        res = await client.get(uri, headers: headers);
+        res = await http.post(uri, headers: headers);
       }
-    } finally {
-      client.close();
+    } else {
+      res = await http.get(uri, headers: headers);
     }
 
     if (res.statusCode < 200 || res.statusCode >= 300) {

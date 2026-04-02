@@ -1,8 +1,3 @@
-# Builds a release APK on GitHub's machines (free tier has monthly minutes).
-# After the run finishes: Actions → this workflow → latest run → Artifacts → download ZIP with the APK.
-#
-# Repo layout: this file lives at the root of the Git repository (alongside pubspec.yaml).
-
 name: Build Android APK
 
 on:
@@ -31,16 +26,8 @@ jobs:
       - name: Generate Android project if missing
         run: flutter create .
 
-      - name: Ensure INTERNET permission in AndroidManifest.xml
-        run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          PERMISSION='<uses-permission android:name="android.permission.INTERNET"/>'
-          if ! grep -q "INTERNET" "$MANIFEST"; then
-            echo "Adding INTERNET permission..."
-            sed -i 's|<manifest|<manifest|; s|<application|'"$PERMISSION"'\n    <application|' "$MANIFEST"
-          else
-            echo "INTERNET permission already present."
-          fi
+      - name: Overwrite AndroidManifest with our version (ensures INTERNET permission)
+        run: cp android_manifest/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
       - run: flutter pub get
 

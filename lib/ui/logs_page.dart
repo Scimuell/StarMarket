@@ -16,6 +16,28 @@ class LogsPage extends StatefulWidget {
 class _LogsPageState extends State<LogsPage> {
   Future<void> _reload() async => setState(() {});
 
+  Future<void> _confirmDelete(BuildContext context, PriceLogRow r) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('DELETE LOG?'),
+        content: Text('Remove "${r.itemName}" at ${r.price} aUEC?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await widget.db.deleteLog(r.id);
+      await _reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cyan = Theme.of(context).colorScheme.primary;
@@ -50,68 +72,84 @@ class _LogsPageState extends State<LogsPage> {
                   : r.logType == 'sell'
                       ? const Color(0xFF00FF9C)
                       : Theme.of(context).colorScheme.onSurface;
-              return Column(
-                children: [
-                  InkWell(
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ItemHistoryPage(db: widget.db, itemName: r.itemName),
-                        ),
-                      );
-                      await _reload();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 2,
-                            height: 36,
-                            color: typeColor.withValues(alpha: 0.6),
+              return Dismissible(
+                key: ValueKey(r.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Theme.of(context).colorScheme.error,
+                  child: const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                confirmDismiss: (_) async {
+                  await _confirmDelete(context, r);
+                  return false;
+                },
+                child: Column(
+                  children: [
+                    InkWell(
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ItemHistoryPage(db: widget.db, itemName: r.itemName),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        );
+                        await _reload();
+                      },
+                      onLongPress: () async {
+                        final ok = await _showLogDialog(context, widget.db, r);
+                        if (ok == true) await _reload();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        child: Row(
+                          children: [
+                            Container(width: 2, height: 36, color: typeColor.withValues(alpha: 0.6)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(r.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${r.location ?? '—'} • ${_fmt(r.loggedAt)}',
+                                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(r.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 2),
                                 Text(
-                                  '${r.location ?? '—'} • ${_fmt(r.loggedAt)}',
-                                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                  '${NumberFormat.decimalPattern().format(r.price)} aUEC',
+                                  style: TextStyle(color: cyan, fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 13),
+                                ),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: typeColor.withValues(alpha: 0.1),
+                                    border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                  child: Text(
+                                    r.logType.toUpperCase(),
+                                    style: TextStyle(color: typeColor, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w700),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${NumberFormat.decimalPattern().format(r.price)} aUEC',
-                                style: TextStyle(color: cyan, fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 13),
-                              ),
-                              const SizedBox(height: 2),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: typeColor.withValues(alpha: 0.1),
-                                  border: Border.all(color: typeColor.withValues(alpha: 0.3)),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                                child: Text(
-                                  r.logType.toUpperCase(),
-                                  style: TextStyle(color: typeColor, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Divider(height: 1, color: outline),
-                ],
+                    Divider(height: 1, color: outline),
+                  ],
+                ),
               );
             },
           );
@@ -119,7 +157,7 @@ class _LogsPageState extends State<LogsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final ok = await _showAddLogDialog(context, widget.db);
+          final ok = await _showLogDialog(context, widget.db, null);
           if (ok == true) await _reload();
         },
         child: const Icon(Icons.add),
@@ -130,20 +168,21 @@ class _LogsPageState extends State<LogsPage> {
   static String _fmt(DateTime d) => DateFormat('dd MMM, HH:mm').format(d);
 }
 
-Future<bool?> _showAddLogDialog(BuildContext context, AppDatabase db) {
-  final item = TextEditingController();
-  final price = TextEditingController();
-  final loc = TextEditingController();
-  final note = TextEditingController();
-  String logType = 'spot';
-  DateTime when = DateTime.now();
+Future<bool?> _showLogDialog(BuildContext context, AppDatabase db, PriceLogRow? existing) {
+  final isEdit = existing != null;
+  final item = TextEditingController(text: existing?.itemName ?? '');
+  final price = TextEditingController(text: existing != null ? '${existing.price}' : '');
+  final loc = TextEditingController(text: existing?.location ?? '');
+  final note = TextEditingController(text: existing?.note ?? '');
+  String logType = existing?.logType ?? 'spot';
+  DateTime when = existing?.loggedAt ?? DateTime.now();
 
   return showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (context, setLocal) {
         return AlertDialog(
-          title: const Text('LOG PRICE'),
+          title: Text(isEdit ? 'EDIT LOG' : 'LOG PRICE'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -195,7 +234,26 @@ Future<bool?> _showAddLogDialog(BuildContext context, AppDatabase db) {
               onPressed: () async {
                 final p = int.tryParse(price.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
                 if (item.text.trim().isEmpty || p == null) { Navigator.pop(ctx, false); return; }
-                await db.insertLog(itemName: item.text.trim(), price: p, location: loc.text.trim().isEmpty ? null : loc.text.trim(), loggedAt: when, logType: logType, note: note.text.trim().isEmpty ? null : note.text.trim());
+                if (isEdit) {
+                  await db.updateLog(
+                    id: existing!.id,
+                    itemName: item.text.trim(),
+                    price: p,
+                    location: loc.text.trim().isEmpty ? null : loc.text.trim(),
+                    loggedAt: when,
+                    logType: logType,
+                    note: note.text.trim().isEmpty ? null : note.text.trim(),
+                  );
+                } else {
+                  await db.insertLog(
+                    itemName: item.text.trim(),
+                    price: p,
+                    location: loc.text.trim().isEmpty ? null : loc.text.trim(),
+                    loggedAt: when,
+                    logType: logType,
+                    note: note.text.trim().isEmpty ? null : note.text.trim(),
+                  );
+                }
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
               child: const Text('SAVE'),

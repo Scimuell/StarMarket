@@ -14,6 +14,28 @@ class AlertsPage extends StatefulWidget {
 class _AlertsPageState extends State<AlertsPage> {
   Future<void> _reload() async => setState(() {});
 
+  Future<void> _confirmDelete(BuildContext context, AlertRow r) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('DELETE ALERT?'),
+        content: Text('Remove alert for "${r.itemName}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await widget.db.deleteAlert(r.id);
+      await _reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cyan = Theme.of(context).colorScheme.primary;
@@ -47,50 +69,74 @@ class _AlertsPageState extends State<AlertsPage> {
               final condColor = isBuy ? cyan : const Color(0xFF00FF9C);
               final condLabel = isBuy ? 'BUY TARGET' : 'SELL TARGET';
               final condSymbol = isBuy ? '≤' : '≥';
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(width: 2, height: 40, color: condColor.withValues(alpha: 0.6)),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(r.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Row(
+              return Dismissible(
+                key: ValueKey(r.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Theme.of(context).colorScheme.error,
+                  child: const Icon(Icons.delete_outline, color: Colors.white),
+                ),
+                confirmDismiss: (_) async {
+                  await _confirmDelete(context, r);
+                  return false;
+                },
+                child: Column(
+                  children: [
+                    InkWell(
+                      onLongPress: () async {
+                        final ok = await _showAlertDialog(context, widget.db, r);
+                        if (ok == true) await _reload();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(width: 2, height: 40, color: condColor.withValues(alpha: 0.6)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: condColor.withValues(alpha: 0.1),
-                                      border: Border.all(color: condColor.withValues(alpha: 0.4)),
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                    child: Text(condLabel, style: TextStyle(color: condColor, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
+                                  Text(r.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: condColor.withValues(alpha: 0.1),
+                                          border: Border.all(color: condColor.withValues(alpha: 0.4)),
+                                          borderRadius: BorderRadius.circular(2),
+                                        ),
+                                        child: Text(condLabel, style: TextStyle(color: condColor, fontSize: 9, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text('$condSymbol ${r.targetAuec} aUEC', style: TextStyle(color: condColor, fontSize: 12, fontFamily: 'monospace')),
+                                    ],
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text('$condSymbol ${r.targetAuec} aUEC', style: TextStyle(color: condColor, fontSize: 12, fontFamily: 'monospace')),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.edit_outlined, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5), size: 18),
+                              onPressed: () async {
+                                final ok = await _showAlertDialog(context, widget.db, r);
+                                if (ok == true) await _reload();
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurface, size: 20),
+                              onPressed: () => _confirmDelete(context, r),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.onSurface, size: 20),
-                          onPressed: () async {
-                            await widget.db.deleteAlert(r.id);
-                            await _reload();
-                          },
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Divider(height: 1, color: outline),
-                ],
+                    Divider(height: 1, color: outline),
+                  ],
+                ),
               );
             },
           );
@@ -98,7 +144,7 @@ class _AlertsPageState extends State<AlertsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final ok = await _showAdd(context, widget.db);
+          final ok = await _showAlertDialog(context, widget.db, null);
           if (ok == true) await _reload();
         },
         child: const Icon(Icons.add),
@@ -107,24 +153,22 @@ class _AlertsPageState extends State<AlertsPage> {
   }
 }
 
-Future<bool?> _showAdd(BuildContext context, AppDatabase db) {
-  final item = TextEditingController();
-  final target = TextEditingController();
-  var mode = 'below_or_equal';
+Future<bool?> _showAlertDialog(BuildContext context, AppDatabase db, AlertRow? existing) {
+  final isEdit = existing != null;
+  final item = TextEditingController(text: existing?.itemName ?? '');
+  final target = TextEditingController(text: existing != null ? '${existing.targetAuec}' : '');
+  var mode = existing?.fireWhen ?? 'below_or_equal';
 
   return showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (context, setLocal) {
         return AlertDialog(
-          title: const Text('NEW ALERT'),
+          title: Text(isEdit ? 'EDIT ALERT' : 'NEW ALERT'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: item,
-                decoration: const InputDecoration(labelText: 'ITEM NAME'),
-              ),
+              TextField(controller: item, decoration: const InputDecoration(labelText: 'ITEM NAME')),
               const SizedBox(height: 8),
               TextField(
                 controller: target,
@@ -149,7 +193,11 @@ Future<bool?> _showAdd(BuildContext context, AppDatabase db) {
               onPressed: () async {
                 final t = int.tryParse(target.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
                 if (item.text.trim().isEmpty || t == null) { Navigator.pop(ctx, false); return; }
-                await db.insertAlert(itemName: item.text.trim(), targetAuec: t, fireWhen: mode);
+                if (isEdit) {
+                  await db.updateAlert(id: existing!.id, itemName: item.text.trim(), targetAuec: t, fireWhen: mode);
+                } else {
+                  await db.insertAlert(itemName: item.text.trim(), targetAuec: t, fireWhen: mode);
+                }
                 if (ctx.mounted) Navigator.pop(ctx, true);
               },
               child: const Text('SAVE'),

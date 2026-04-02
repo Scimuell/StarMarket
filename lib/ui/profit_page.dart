@@ -15,6 +15,28 @@ class ProfitPage extends StatefulWidget {
 class _ProfitPageState extends State<ProfitPage> {
   Future<void> _reload() async => setState(() {});
 
+  Future<void> _confirmDelete(BuildContext context, TradeRow t) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('DELETE TRADE?'),
+        content: Text('Remove trade for "${t.itemName}"? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('DELETE'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await widget.db.deleteTrade(t.id);
+      await _reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cyan = Theme.of(context).colorScheme.primary;
@@ -88,61 +110,101 @@ class _ProfitPageState extends State<ProfitPage> {
                           final t = rows[i];
                           final pl = t.profitAuec();
                           final plColor = pl == null ? Theme.of(context).colorScheme.onSurface : (pl >= 0 ? green : red);
-                          return Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(width: 2, height: 48, color: t.isOpen ? cyan.withValues(alpha: 0.5) : plColor.withValues(alpha: 0.5)),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(t.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'BUY  ${t.buyQty} × ${NumberFormat.decimalPattern().format(t.buyAuec)} aUEC  •  ${_fmt(t.boughtAt)}',
-                                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
-                                          ),
-                                          if (!t.isOpen)
-                                            Text(
-                                              'SELL ${t.sellQty} × ${NumberFormat.decimalPattern().format(t.sellAuec)} aUEC  •  ${_fmt(t.soldAt!)}',
-                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    t.isOpen
-                                        ? FilledButton(
-                                            onPressed: () async {
-                                              final ok = await _closeDialog(context, widget.db, t);
-                                              if (ok == true) await _reload();
-                                            },
-                                            style: FilledButton.styleFrom(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              textStyle: const TextStyle(fontSize: 11, letterSpacing: 1),
-                                            ),
-                                            child: const Text('CLOSE'),
-                                          )
-                                        : Column(
-                                            crossAxisAlignment: CrossAxisAlignment.end,
+                          return Dismissible(
+                            key: ValueKey(t.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Theme.of(context).colorScheme.error,
+                              child: const Icon(Icons.delete_outline, color: Colors.white),
+                            ),
+                            confirmDismiss: (_) async {
+                              await _confirmDelete(context, t);
+                              return false;
+                            },
+                            child: Column(
+                              children: [
+                                InkWell(
+                                  onLongPress: () async {
+                                    final ok = await _editTradeDialog(context, widget.db, t);
+                                    if (ok == true) await _reload();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(width: 2, height: 48, color: t.isOpen ? cyan.withValues(alpha: 0.5) : plColor.withValues(alpha: 0.5)),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
+                                              Text(t.itemName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'BUY  ${t.buyQty} × ${NumberFormat.decimalPattern().format(t.buyAuec)} aUEC  •  ${_fmt(t.boughtAt)}',
+                                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                              ),
+                                              if (!t.isOpen)
+                                                Text(
+                                                  'SELL ${t.sellQty} × ${NumberFormat.decimalPattern().format(t.sellAuec)} aUEC  •  ${_fmt(t.soldAt!)}',
+                                                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            if (t.isOpen)
+                                              FilledButton(
+                                                onPressed: () async {
+                                                  final ok = await _closeDialog(context, widget.db, t);
+                                                  if (ok == true) await _reload();
+                                                },
+                                                style: FilledButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                  textStyle: const TextStyle(fontSize: 11, letterSpacing: 1),
+                                                ),
+                                                child: const Text('CLOSE'),
+                                              )
+                                            else ...[
                                               Text(
                                                 pl == null ? '—' : '${pl >= 0 ? '+' : ''}${NumberFormat.decimalPattern().format(pl)}',
                                                 style: TextStyle(color: plColor, fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 14),
                                               ),
                                               Text('aUEC', style: TextStyle(color: plColor.withValues(alpha: 0.7), fontSize: 10, letterSpacing: 1)),
                                             ],
-                                          ),
-                                  ],
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                GestureDetector(
+                                                  onTap: () async {
+                                                    final ok = await _editTradeDialog(context, widget.db, t);
+                                                    if (ok == true) await _reload();
+                                                  },
+                                                  child: Icon(Icons.edit_outlined, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                GestureDetector(
+                                                  onTap: () => _confirmDelete(context, t),
+                                                  child: Icon(Icons.delete_outline, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              Divider(height: 1, color: outline),
-                            ],
+                                Divider(height: 1, color: outline),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -191,6 +253,109 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Edit buy details (and optionally sell details for closed trades)
+Future<bool?> _editTradeDialog(BuildContext context, AppDatabase db, TradeRow t) {
+  final item = TextEditingController(text: t.itemName);
+  final buyQtyCtrl = TextEditingController(text: '${t.buyQty}');
+  final buyPxCtrl = TextEditingController(text: '${t.buyAuec}');
+  final notesCtrl = TextEditingController(text: t.notes ?? '');
+  final sellPxCtrl = TextEditingController(text: t.sellAuec != null ? '${t.sellAuec}' : '');
+  final sellQtyCtrl = TextEditingController(text: t.sellQty != null ? '${t.sellQty}' : '');
+  DateTime boughtAt = t.boughtAt;
+  DateTime? soldAt = t.soldAt;
+
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setLocal) {
+        return AlertDialog(
+          title: const Text('EDIT TRADE'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: item, decoration: const InputDecoration(labelText: 'COMMODITY')),
+                const SizedBox(height: 8),
+                TextField(controller: buyQtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'BUY QUANTITY')),
+                const SizedBox(height: 8),
+                TextField(controller: buyPxCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'BUY PRICE (aUEC each)')),
+                const SizedBox(height: 8),
+                TextField(controller: notesCtrl, decoration: const InputDecoration(labelText: 'NOTES (optional)')),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('BUY DATE', style: TextStyle(fontSize: 11, letterSpacing: 1, color: Theme.of(context).colorScheme.onSurface)),
+                  subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(boughtAt), style: const TextStyle(fontSize: 13)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.edit_calendar_outlined, color: Theme.of(context).colorScheme.primary),
+                    onPressed: () async {
+                      final d = await showDatePicker(context: context, initialDate: boughtAt, firstDate: DateTime(2018), lastDate: DateTime(2100));
+                      if (d == null) return;
+                      final tm = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(boughtAt));
+                      if (tm == null) return;
+                      setLocal(() { boughtAt = DateTime(d.year, d.month, d.day, tm.hour, tm.minute); });
+                    },
+                  ),
+                ),
+                if (!t.isOpen) ...[
+                  const Divider(),
+                  TextField(controller: sellQtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'SELL QUANTITY')),
+                  const SizedBox(height: 8),
+                  TextField(controller: sellPxCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'SELL PRICE (aUEC each)')),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('SELL DATE', style: TextStyle(fontSize: 11, letterSpacing: 1, color: Theme.of(context).colorScheme.onSurface)),
+                    subtitle: Text(DateFormat('dd MMM yyyy, HH:mm').format(soldAt ?? DateTime.now()), style: const TextStyle(fontSize: 13)),
+                    trailing: IconButton(
+                      icon: Icon(Icons.edit_calendar_outlined, color: Theme.of(context).colorScheme.primary),
+                      onPressed: () async {
+                        final base = soldAt ?? DateTime.now();
+                        final d = await showDatePicker(context: context, initialDate: base, firstDate: DateTime(2018), lastDate: DateTime(2100));
+                        if (d == null) return;
+                        final tm = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(base));
+                        if (tm == null) return;
+                        setLocal(() { soldAt = DateTime(d.year, d.month, d.day, tm.hour, tm.minute); });
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
+            FilledButton(
+              onPressed: () async {
+                final bQty = int.tryParse(buyQtyCtrl.text.trim());
+                final bPx = int.tryParse(buyPxCtrl.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
+                if (item.text.trim().isEmpty || bQty == null || bPx == null) { Navigator.pop(ctx, false); return; }
+                await db.updateTradeBuy(
+                  id: t.id,
+                  itemName: item.text.trim(),
+                  buyAuec: bPx,
+                  buyQty: bQty,
+                  boughtAt: boughtAt,
+                  notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                );
+                if (!t.isOpen) {
+                  final sQty = int.tryParse(sellQtyCtrl.text.trim());
+                  final sPx = int.tryParse(sellPxCtrl.text.trim().replaceAll(RegExp(r'[^0-9\-]'), ''));
+                  if (sQty != null && sPx != null && soldAt != null) {
+                    await db.updateTradeSale(id: t.id, sellAuec: sPx, sellQty: sQty, soldAt: soldAt!);
+                  }
+                }
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              },
+              child: const Text('SAVE'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 Future<bool?> _buyDialog(BuildContext context, AppDatabase db) {

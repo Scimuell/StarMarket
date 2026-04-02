@@ -7,6 +7,7 @@ import 'catalog_page.dart';
 import 'dashboard_page.dart';
 import 'logs_page.dart';
 import 'profit_page.dart';
+import 'rare_armor_page.dart';
 import 'settings_page.dart';
 
 class HomeShell extends StatefulWidget {
@@ -89,13 +90,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       AiChatPage(db: widget.db),
       AlertsPage(db: widget.db),
       ProfitPage(db: widget.db),
+      const RareArmorPage(),
     ];
 
-    const titles = ['OVERVIEW', 'MARKET DATA', 'TRADE LOG', 'AI ADVISOR', 'ALERTS', 'PROFIT'];
+    const titles = ['OVERVIEW', 'MARKET DATA', 'TRADE LOG', 'AI ADVISOR', 'ALERTS', 'PROFIT', 'RARE ARMOUR'];
 
     return Scaffold(
       appBar: AppBar(
-        title: _AppBarTitle(title: titles[_index.clamp(0, 5)]),
+        title: _AppBarTitle(title: titles[_index.clamp(0, 6)]),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune),
@@ -121,7 +123,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           ),
         ),
         child: NavigationBar(
-          selectedIndex: _index.clamp(0, 5),
+          selectedIndex: _index.clamp(0, 6),
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
             NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'OVERVIEW'),
@@ -130,6 +132,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             NavigationDestination(icon: Icon(Icons.terminal_outlined), selectedIcon: Icon(Icons.terminal), label: 'AI'),
             NavigationDestination(icon: Icon(Icons.radar_outlined), selectedIcon: Icon(Icons.radar), label: 'ALERTS'),
             NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'PROFIT'),
+            NavigationDestination(icon: Icon(Icons.shield_outlined), selectedIcon: Icon(Icons.shield), label: 'ARMOUR'),
           ],
         ),
       ),

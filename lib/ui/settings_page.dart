@@ -87,6 +87,18 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  /// One-tap Groq setup: fills Base URL and Model fields with Groq defaults.
+  void _fillGroqDefaults() {
+    setState(() {
+      _aiProvider = 'openai';
+      _base.text = AiService.groqDefaultBase;
+      _model.text = AiService.groqDefaultModel;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Groq defaults filled — paste your API key then tap Save AI settings.')),
+    );
+  }
+
   Future<void> _savePriceApi() async {
     await _priceApi.setUrl(_catUrl.text.trim());
     await _priceApi.setMethod(_catMethod);
@@ -274,9 +286,19 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _saveAi,
-              child: const Text('Save AI settings'),
+            Row(
+              children: [
+                FilledButton(
+                  onPressed: _saveAi,
+                  child: const Text('Save AI settings'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _fillGroqDefaults,
+                  icon: const Icon(Icons.bolt, size: 16),
+                  label: const Text('Use Groq'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Text('Price catalog API (your site)', style: Theme.of(context).textTheme.titleMedium),

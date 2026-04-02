@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../db/app_db.dart';
 import '../services/ai_service.dart';
+import 'rare_armor_page.dart' show rareArmorContextBlob;
 
 class AiChatPage extends StatefulWidget {
   const AiChatPage({super.key, required this.db});
@@ -37,9 +38,25 @@ class _AiChatPageState extends State<AiChatPage> {
     _scrollToEnd();
 
     try {
-      final catalogRaw = await widget.db.catalogContextBlob(maxItems: 20);
-      // Trim catalog context to ~2000 chars to stay within free tier token limits
-      final catalog = catalogRaw.length > 2000 ? '${catalogRaw.substring(0, 2000)}\n...(truncated)' : catalogRaw;
+      // Extract keywords from the user's message so the DB can prioritise
+      // relevant items within the token budget.
+      final keywords = text
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^\w\s]'), ' ')
+          .split(RegExp(r'\s+'))
+          .where((w) => w.length > 2)
+          .toList();
+
+      // Groq free tier: ~6k TPM limit — keep catalog to ~4000 chars (~1000 tokens)
+      // to leave headroom for the conversation + system prompt.
+      // Other providers (OpenAI, local, etc.): use full 10k budget.
+      final groq = await _ai.isGroq();
+      final charBudget = groq ? 4000 : 10000;
+
+      final catalog = await widget.db.catalogContextBlob(
+        charBudget: charBudget,
+        keywords: keywords,
+      );
       final logs = await widget.db.recentLogs(limit: 10);
       final logText = logs
           .map((e) => '${e.itemName}: ${e.price} aUEC @ ${e.loggedAt.toIso8601String()} (${e.logType})')
@@ -55,6 +72,8 @@ $catalog
 
 RECENT USER LOGS:
 $logText
+
+${rareArmorContextBlob()}
 ''';
 
       final reply = await _ai.completeChat(

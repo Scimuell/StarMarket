@@ -321,22 +321,73 @@ CREATE TABLE trades (
     );
   }
 
-  /// Compact text for AI context
-  Future<String> catalogContextBlob({int maxItems = 60}) async {
-    final items = await _db.query('catalog_items', orderBy: 'name COLLATE NOCASE ASC', limit: maxItems);
-    if (items.isEmpty) return '(catalog empty)';
-    final buf = StringBuffer();
-    for (final it in items) {
-      final id = it['id'] as int;
-      final name = it['name'] as String;
-      final offers = await offersForItem(id);
-      for (final o in offers) {
-        buf.writeln(
-          '$name @ ${o.location} | buy: ${o.buyAuec ?? '—'} | sell: ${o.sellAuec ?? '—'} aUEC',
-        );
+  /// Compact text for AI context.
+  ///
+  /// Uses a single JOIN query (avoids N+1 per-item round-trips).
+  /// [charBudget] caps the output size so it fits within AI token limits.
+  /// [keywords] optionally prioritise items whose names contain any keyword
+  /// (case-insensitive); matched items fill the budget first, then remaining
+  /// space is filled with other items alphabetically.
+  Future<String> catalogContextBlob({
+    int charBudget = 10000,
+    List<String> keywords = const [],
+  }) async {
+    // Single query: join items + offers in one round-trip
+    const sql = '''
+      SELECT ci.name, co.location, co.buy_auec, co.sell_auec
+      FROM catalog_items ci
+      LEFT JOIN catalog_offers co ON co.item_id = ci.id
+      ORDER BY ci.name COLLATE NOCASE ASC, co.location ASC
+    ''';
+    final rows = await _db.rawQuery(sql);
+    if (rows.isEmpty) return '(catalog empty)';
+
+    // Build per-item lines, tracking which items match keywords
+    final matched = StringBuffer();
+    final rest = StringBuffer();
+    int matchedChars = 0;
+    int restChars = 0;
+
+    final lowerKw = keywords.map((k) => k.toLowerCase()).toList();
+
+    String? lastItem;
+    bool lastMatched = false;
+
+    for (final row in rows) {
+      final name = row['name'] as String;
+      final location = row['location'] as String? ?? 'Unknown';
+      final buy = row['buy_auec'];
+      final sell = row['sell_auec'];
+      final line = '$name @ $location | buy: ${buy ?? '—'} | sell: ${sell ?? '—'} aUEC\n';
+
+      final isMatch = lowerKw.isNotEmpty &&
+          lowerKw.any((k) => name.toLowerCase().contains(k));
+
+      if (name != lastItem) {
+        lastItem = name;
+        lastMatched = isMatch;
+      }
+
+      if (lastMatched) {
+        matched.write(line);
+        matchedChars += line.length;
+      } else {
+        rest.write(line);
+        restChars += line.length;
       }
     }
-    return buf.toString();
+
+    // Fill budget: matched items first, then pad with alphabetical rest
+    final matchedStr = matched.toString();
+    final restStr = rest.toString();
+
+    if (matchedChars >= charBudget) {
+      return matchedStr.substring(0, charBudget);
+    }
+    final remaining = charBudget - matchedChars;
+    final restTrimmed = restChars > remaining ? restStr.substring(0, remaining) : restStr;
+    final suffix = (matchedChars + restChars) > charBudget ? '\n...(catalog truncated, showing top results)' : '';
+    return matchedStr + restTrimmed + suffix;
   }
 
   // --- Logs ---
@@ -469,6 +520,52 @@ CREATE TABLE trades (
     });
   }
 
+  Future<void> deleteLog(int id) => _db.delete('price_logs', where: 'id = ?', whereArgs: [id]);
+
+  Future<void> updateLog({
+    required int id,
+    required String itemName,
+    required int price,
+    String? location,
+    required DateTime loggedAt,
+    required String logType,
+    String? note,
+  }) async {
+    await _db.update(
+      'price_logs',
+      {
+        'item_name': itemName.trim(),
+        'price': price,
+        'location': location,
+        'logged_at': loggedAt.toIso8601String(),
+        'log_type': logType,
+        'note': note,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateAlert({
+    required int id,
+    required String itemName,
+    required int targetAuec,
+    required String fireWhen,
+  }) async {
+    await _db.update(
+      'price_alerts',
+      {
+        'item_name': itemName.trim(),
+        'target_auec': targetAuec,
+        'fire_when': fireWhen,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteTrade(int id) => _db.delete('trades', where: 'id = ?', whereArgs: [id]);
+
   Future<void> updateTradeSale({
     required int id,
     required int sellAuec,
@@ -481,6 +578,28 @@ CREATE TABLE trades (
         'sell_auec': sellAuec,
         'sell_qty': sellQty,
         'sold_at': soldAt.toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> updateTradeBuy({
+    required int id,
+    required String itemName,
+    required int buyAuec,
+    required int buyQty,
+    required DateTime boughtAt,
+    String? notes,
+  }) async {
+    await _db.update(
+      'trades',
+      {
+        'item_name': itemName.trim(),
+        'buy_auec': buyAuec,
+        'buy_qty': buyQty,
+        'bought_at': boughtAt.toIso8601String(),
+        'notes': notes,
       },
       where: 'id = ?',
       whereArgs: [id],

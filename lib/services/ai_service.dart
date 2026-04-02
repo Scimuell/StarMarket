@@ -23,6 +23,8 @@ class AiService {
 
   static const openAiDefaultBase = 'https://api.openai.com';
   static const geminiDefaultBase = 'https://generativelanguage.googleapis.com';
+  static const groqDefaultBase = 'https://api.groq.com/openai';
+  static const groqDefaultModel = 'llama-3.3-70b-versatile';
 
   final FlutterSecureStorage _secure = const FlutterSecureStorage();
 
@@ -39,7 +41,7 @@ class AiService {
 
   Future<String> getBaseUrl() async {
     final p = await SharedPreferences.getInstance();
-    return p.getString(_kBaseUrl) ?? 'https://api.openai.com';
+    return p.getString(_kBaseUrl) ?? groqDefaultBase;
   }
 
   Future<void> setBaseUrl(String v) async {
@@ -49,7 +51,7 @@ class AiService {
 
   Future<String> getModel() async {
     final p = await SharedPreferences.getInstance();
-    return p.getString(_kModel) ?? 'gpt-4o-mini';
+    return p.getString(_kModel) ?? groqDefaultModel;
   }
 
   Future<void> setModel(String v) async {
@@ -65,6 +67,12 @@ class AiService {
     } else {
       await _secure.write(key: _kApiKey, value: v.trim());
     }
+  }
+
+  /// Returns true when the configured base URL points to Groq.
+  Future<bool> isGroq() async {
+    final base = await getBaseUrl();
+    return base.contains('groq.com');
   }
 
   /// OpenAI-compatible chat, Google Gemini [generateContent](https://ai.google.dev/api/rest), etc.

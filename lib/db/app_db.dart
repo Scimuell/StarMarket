@@ -192,7 +192,8 @@ CREATE TABLE trades (
     final items = json['items'] as List<dynamic>? ?? [];
     await _db.transaction((txn) async {
       for (final raw in items) {
-        final m = raw as Map<String, dynamic>;
+        if (raw == null || raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
         final name = (m['name'] as String?)?.trim();
         if (name == null || name.isEmpty) continue;
         final extra = m['extra'] != null ? jsonEncode(m['extra']) : null;
@@ -222,7 +223,8 @@ CREATE TABLE trades (
         final offers = m['offers'] as List<dynamic>? ?? [];
         await txn.delete('catalog_offers', where: 'item_id = ?', whereArgs: [resolvedId]);
         for (final o in offers) {
-          final om = o as Map<String, dynamic>;
+          if (o == null || o is! Map) continue;
+          final om = Map<String, dynamic>.from(o);
           final loc = (om['location'] as String?)?.trim() ?? '';
           if (loc.isEmpty) continue;
           final buy = _asAuec(om['buy_auec']) ?? _asAuec(om['buy']);

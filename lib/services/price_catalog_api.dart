@@ -224,9 +224,10 @@ class PriceCatalogApiService {
     if (!ok) return null;
     final data = m['data'];
     if (data == null || data is! List || data.isEmpty) return null;
-    final first = data.first;
-    if (first is! Map) return null;
-    final fm = Map<String, dynamic>.from(first);
+    // Find first non-null Map entry to check shape
+    final first = data.firstWhere((e) => e != null && e is Map, orElse: () => null);
+    if (first == null) return null;
+    final fm = Map<String, dynamic>.from(first as Map);
     // Ship objects always have a name; fields vary by API version.
     final looksLikeShip = fm.containsKey('name') &&
         (fm.containsKey('id') ||
@@ -234,7 +235,9 @@ class PriceCatalogApiService {
             fm.containsKey('chassis_id') ||
             fm.containsKey('cargocapacity') ||
             fm.containsKey('production_status') ||
-            fm.containsKey('price'));
+            fm.containsKey('price') ||
+            fm.containsKey('beam') ||
+            fm.containsKey('compiled'));
     if (!looksLikeShip) return null;
 
     final src = m['source']?.toString() ?? 'cache';
@@ -244,14 +247,14 @@ class PriceCatalogApiService {
   static Map<String, dynamic> shipsPayloadToCatalog(List<dynamic> ships, {required String sourceLabel}) {
     return {
       'patch': 'SC-API ships ($sourceLabel)',
-      'items': ships.map((raw) {
+      'items': ships.where((raw) => raw != null && raw is Map).map((raw) {
         final s = Map<String, dynamic>.from(raw as Map);
         final name = s['name']?.toString().trim();
         if (name == null || name.isEmpty) {
           return {'name': 'Unknown ship', 'extra': s, 'offers': <Map<String, dynamic>>[]};
         }
         final usd = s['price'];
-        final usdLabel = usd == null ? 'unknown USD' : '${usd} USD (pledge; not aUEC)';
+        final usdLabel = usd == null ? 'unknown USD' : '$usd USD (pledge; not aUEC)';
         return {
           'name': name,
           'extra': {

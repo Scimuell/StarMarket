@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Static rare/useful materials reference — update as new spots are discovered.
+/// Static rare/useful materials reference â€” update as new spots are discovered.
 const _kMaterials = [
   _MaterialEntry(
     name: 'Quantainium',
     category: 'Commodity',
     rarity: 'Very Rare',
     description:
-        'The most valuable tradeable commodity in the game. Extremely unstable — your ship will explode if it takes damage while carrying it. Only found at Lagrange mining sites. High risk, enormous reward.',
-    tips: 'Use a dedicated mining ship. Fly carefully — no combat. Sell ASAP at a major hub.',
+        'The most valuable tradeable commodity in the game. Extremely unstable â€” your ship will explode if it takes damage while carrying it. Only found at Lagrange mining sites. High risk, enormous reward.',
+    tips: 'Use a dedicated mining ship. Fly carefully â€” no combat. Sell ASAP at a major hub.',
     locations: [
       _MatLocation('Aaron Halo Asteroid Belt', 'Minable in the belt around Stanton. Best yield per run.', _Risk.high),
       _MatLocation('Lagrange Point Mining Sites', 'Yela, Cellin, Daymar asteroid fields.', _Risk.medium),
     ],
     buyRange: null,
-    sellRange: '127,000–140,000 aUEC/unit',
+    sellRange: '127,000â€“140,000 aUEC/unit',
   ),
   _MaterialEntry(
     name: 'Luminite',
@@ -106,7 +106,7 @@ const _kMaterials = [
     category: 'Gem',
     rarity: 'Very Rare',
     description:
-        'Extremely rare gem found only in specific cave systems. Cannot be mined with ships — hand mining only. One of the highest value per-unit items in the game.',
+        'Extremely rare gem found only in specific cave systems. Cannot be mined with ships â€” hand mining only. One of the highest value per-unit items in the game.',
     tips: 'Use the Pyro Opal Cave near Wala or Daymar caves. Bring a multitool with a mining attachment.',
     locations: [
       _MatLocation('Wala Cave Systems', 'Best known spawn. Requires EVA and cave navigation.', _Risk.high),
@@ -121,7 +121,7 @@ const _kMaterials = [
     category: 'Gem',
     rarity: 'Rare',
     description:
-        'Hand-minable gem found in cave systems. Very high value, compact carry — great for solo runs on foot.',
+        'Hand-minable gem found in cave systems. Very high value, compact carry â€” great for solo runs on foot.',
     tips: 'Prioritise over ground-mined ores when doing cave runs. Sells quickly.',
     locations: [
       _MatLocation('Microtech Moon Caves', 'Consistent spawn.', _Risk.medium),
@@ -136,7 +136,7 @@ const _kMaterials = [
     rarity: 'Rare',
     description:
         'Cave gem with solid sell price. Often found alongside Aphorite in the same deposits.',
-    tips: 'Run cave loops — collect everything, sort by value later.',
+    tips: 'Run cave loops â€” collect everything, sort by value later.',
     locations: [
       _MatLocation('Cellin Caves', 'Reliable spawn.', _Risk.medium),
       _MatLocation('Hurston Moon Caves', 'Secondary source.', _Risk.medium),
@@ -152,7 +152,7 @@ const _kMaterials = [
         'High-demand trade good with good margins between systems. Essential for trading routes.',
     tips: 'Buy at Lorville medical district, sell at remote outposts for margin.',
     locations: [
-      _MatLocation('Lorville — CentroMed', 'Primary buyer source.', _Risk.medium),
+      _MatLocation('Lorville â€” CentroMed', 'Primary buyer source.', _Risk.medium),
       _MatLocation('Various Outposts', 'Sell destination.', _Risk.medium),
     ],
     buyRange: '5,200 aUEC/unit',
@@ -185,14 +185,14 @@ String rareMaterialsContextBlob() {
     if (m.sellRange != null) buf.writeln('  Sell: ${m.sellRange}');
     buf.writeln('  Tip: ${m.tips}');
     for (final l in m.locations) {
-      buf.writeln('  Location: ${l.name} — ${l.notes} [Risk: ${l.risk.label}]');
+      buf.writeln('  Location: ${l.name} â€” ${l.notes} [Risk: ${l.risk.label}]');
     }
   }
   buf.writeln('=== END MATERIALS ===');
   return buf.toString();
 }
 
-// ─── Data model ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Data model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 enum _Risk {
   medium('Medium'),
@@ -231,7 +231,7 @@ class _MaterialEntry {
   final String? sellRange;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class RareMaterialsPage extends StatefulWidget {
   const RareMaterialsPage({super.key});
@@ -510,13 +510,4 @@ class _MaterialCard extends StatelessWidget {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withValues(alpha: 0.65))),
-                  ),
-                ],
-              ),
-            ),
-            // Locations
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
-              child: Column(
-                crossAxi
+    

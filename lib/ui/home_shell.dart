@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../db/app_db.dart';
 import 'ai_chat_page.dart';
-import 'alerts_page.dart';
 import 'catalog_page.dart';
 import 'dashboard_page.dart';
-import 'logs_page.dart';
-import 'profit_page.dart';
 import 'rare_armor_page.dart';
+import 'rare_guns_page.dart';
+import 'rare_materials_page.dart';
 import 'settings_page.dart';
 
 class HomeShell extends StatefulWidget {
@@ -82,22 +81,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final pages = <Widget>[
       DashboardPage(
         db: widget.db,
-        onOpenAlerts: () => setState(() => _index = 4),
-        onOpenProfit: () => setState(() => _index = 5),
+        onOpenAlerts: () {},
+        onOpenProfit: () {},
       ),
       CatalogPage(db: widget.db),
-      LogsPage(db: widget.db),
       AiChatPage(db: widget.db),
-      AlertsPage(db: widget.db),
-      ProfitPage(db: widget.db),
+      const RareGunsPage(),
       const RareArmorPage(),
+      const RareMaterialsPage(),
     ];
 
-    const titles = ['OVERVIEW', 'MARKET DATA', 'TRADE LOG', 'AI ADVISOR', 'ALERTS', 'PROFIT', 'RARE ARMOUR'];
+    const titles = ['OVERVIEW', 'MARKET DATA', 'AI ADVISOR', 'WEAPONS', 'ARMOUR', 'MATERIALS'];
 
     return Scaffold(
       appBar: AppBar(
-        title: _AppBarTitle(title: titles[_index.clamp(0, 6)]),
+        title: _AppBarTitle(title: titles[_index.clamp(0, 5)]),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune),
@@ -134,16 +132,15 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             }),
           ),
           child: NavigationBar(
-          selectedIndex: _index.clamp(0, 6),
+          selectedIndex: _index.clamp(0, 5),
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
             NavigationDestination(icon: Icon(Icons.grid_view_outlined), selectedIcon: Icon(Icons.grid_view), label: 'OVERVIEW'),
             NavigationDestination(icon: Icon(Icons.dataset_outlined), selectedIcon: Icon(Icons.dataset), label: 'MARKET'),
-            NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'LOG'),
             NavigationDestination(icon: Icon(Icons.terminal_outlined), selectedIcon: Icon(Icons.terminal), label: 'AI'),
-            NavigationDestination(icon: Icon(Icons.radar_outlined), selectedIcon: Icon(Icons.radar), label: 'ALERTS'),
-            NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'PROFIT'),
+            NavigationDestination(icon: Icon(Icons.gps_fixed_outlined), selectedIcon: Icon(Icons.gps_fixed), label: 'WEAPONS'),
             NavigationDestination(icon: Icon(Icons.shield_outlined), selectedIcon: Icon(Icons.shield), label: 'ARMOUR'),
+            NavigationDestination(icon: Icon(Icons.diamond_outlined), selectedIcon: Icon(Icons.diamond), label: 'MATS'),
           ],
         ),
         ),

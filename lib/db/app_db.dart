@@ -324,75 +324,75 @@ CREATE TABLE trades (
   /// Compact text for AI context.
   ///
   /// Uses a single JOIN query (avoids N+1 per-item round-trips).
-  /// [charBudget] caps the output size so it fits within AI token limits.
-  /// [keywords] optionally prioritise items whose names contain any keyword
-  /// (case-insensitive); matched items fill the budget first, then remaining
-  /// space is filled with other items alphabetically.
+  /// Returns the full catalog in a heavily compressed single-line-per-item
+  /// format so the AI can see everything within token limits.
+  /// Format: ItemName:BUYb/SELLs[Loc1,Loc2,...] — ~8x smaller than verbose.
   Future<String> catalogContextBlob({
-    int charBudget = 10000,
+    int charBudget = 40000,
     List<String> keywords = const [],
     bool matchedOnly = false,
   }) async {
-    // Single query: join items + offers in one round-trip
     const sql = '''
       SELECT ci.name, co.location, co.buy_auec, co.sell_auec
       FROM catalog_items ci
       LEFT JOIN catalog_offers co ON co.item_id = ci.id
-      ORDER BY ci.name COLLATE NOCASE ASC, co.location ASC
+      ORDER BY ci.name COLLATE NOCASE ASC
     ''';
     final rows = await _db.rawQuery(sql);
     if (rows.isEmpty) return '(catalog empty)';
 
-    // Build per-item lines, tracking which items match keywords
-    final matched = StringBuffer();
-    final rest = StringBuffer();
-    int matchedChars = 0;
-    int restChars = 0;
-
-    final lowerKw = keywords.map((k) => k.toLowerCase()).toList();
-
-    String? lastItem;
-    bool lastMatched = false;
-
+    // Group offers by item name
+    final grouped = <String, List<Map<String, Object?>>>{};
     for (final row in rows) {
       final name = row['name'] as String;
-      final location = row['location'] as String? ?? 'Unknown';
-      final buy = row['buy_auec'];
-      final sell = row['sell_auec'];
-      final line = '$name @ $location | buy: ${buy ?? '—'} | sell: ${sell ?? '—'} aUEC\n';
-
-      final isMatch = lowerKw.isNotEmpty &&
-          lowerKw.any((k) => name.toLowerCase().contains(k));
-
-      if (name != lastItem) {
-        lastItem = name;
-        lastMatched = isMatch;
-      }
-
-      if (lastMatched) {
-        matched.write(line);
-        matchedChars += line.length;
-      } else {
-        rest.write(line);
-        restChars += line.length;
-      }
+      grouped.putIfAbsent(name, () => []).add(row);
     }
 
-    // Fill budget: matched items first, then pad with alphabetical rest
-    // (unless matchedOnly is true — e.g. Groq with keywords — skip the rest
-    // entirely so we stay well under the token limit).
-    final matchedStr = matched.toString();
-    final restStr = rest.toString();
+    // Compress: one line per item
+    // Format: Aluminum:363b/330s[TDD A18,TDD NB] or Titanium:—b/8300s[Shubin]
+    final buf = StringBuffer();
+    for (final entry in grouped.entries) {
+      final name = entry.key;
+      final offers = entry.value;
 
-    if (matchedOnly || matchedChars >= charBudget) {
-      final truncated = matchedStr.length > charBudget ? matchedStr.substring(0, charBudget) : matchedStr;
-      final suffix = matchedStr.length > charBudget ? '\n...(results truncated to fit token limit)' : '';
-      return truncated + suffix;
+      // Collect unique buy/sell prices and locations
+      int? minBuy, maxSell;
+      final locs = <String>[];
+      for (final o in offers) {
+        final buy = o['buy_auec'];
+        final sell = o['sell_auec'];
+        final loc = (o['location'] as String? ?? '').trim();
+        if (buy != null) {
+          final b = buy is int ? buy : (buy as num).toInt();
+          if (minBuy == null || b < minBuy) minBuy = b;
+        }
+        if (sell != null) {
+          final s = sell is int ? sell : (sell as num).toInt();
+          if (maxSell == null || s > maxSell) maxSell = s;
+        }
+        // Shorten location: strip common suffixes and long words
+        final shortLoc = loc
+            .replaceAll(' — ', '-')
+            .replaceAll('Terminal', 'T')
+            .replaceAll('Station', 'Sta')
+            .replaceAll('Distribution', 'Dist')
+            .replaceAll('Center', 'Ctr')
+            .replaceAll('Outpost', 'OP');
+        if (shortLoc.isNotEmpty && !locs.contains(shortLoc)) {
+          locs.add(shortLoc);
+        }
+      }
+
+      final buyStr = minBuy != null ? '${minBuy}b' : '-';
+      final sellStr = maxSell != null ? '${maxSell}s' : '-';
+      final locStr = locs.take(6).join(',');
+      final line = '$name:$buyStr/$sellStr[$locStr]\n';
+      buf.write(line);
+
+      if (buf.length >= charBudget) break;
     }
-    final remaining = charBudget - matchedChars;
-    final restTrimmed = restChars > remaining ? restStr.substring(0, remaining) : restStr;
-    final suffix = (matchedChars + restChars) > charBudget ? '\n...(catalog truncated, showing top results)' : '';
-    return matchedStr + restTrimmed + suffix;
+
+    return buf.toString();
   }
 
   // --- Logs ---

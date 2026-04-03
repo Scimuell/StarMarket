@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../db/app_db.dart';
 import '../services/ai_service.dart';
 import 'rare_armor_page.dart' show rareArmorContextBlob;
+import 'rare_guns_page.dart' show rareGunsContextBlob;
+import 'rare_materials_page.dart' show rareMaterialsContextBlob;
 
 class AiChatPage extends StatefulWidget {
   const AiChatPage({super.key, required this.db});
@@ -38,53 +40,9 @@ class _AiChatPageState extends State<AiChatPage> {
     _scrollToEnd();
 
     try {
-      // Strip common English filler words so only item-name-like words remain.
-      // Without this, words like "where", "can", "buy" count as keywords and
-      // matchedOnly mode returns zero catalog rows (because no item is named "where").
-      const _stopwords = {
-        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her',
-        'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how',
-        'its', 'may', 'now', 'see', 'two', 'use', 'way', 'who', 'did', 'let',
-        'put', 'say', 'she', 'too', 'that', 'this', 'with', 'have', 'from',
-        'they', 'will', 'been', 'more', 'when', 'your', 'what', 'some', 'into',
-        'than', 'then', 'here', 'were', 'also', 'each', 'does', 'most', 'where',
-        'there', 'their', 'about', 'which', 'would', 'could', 'should', 'price',
-        'much', 'cost', 'sell', 'sold', 'best', 'find', 'show', 'give', 'tell',
-        'need', 'want', 'look', 'know', 'like', 'just', 'make', 'good', 'buy',
-        'buying', 'selling', 'cheapest', 'expensive', 'trade', 'trading', 'auec',
-        'item', 'items', 'station', 'location', 'locations', 'market', 'catalog',
-        'catalogue', 'data', 'info', 'list',
-      };
-
-      final keywords = text
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^\w\s]'), ' ')
-          .split(RegExp(r'\s+'))
-          .where((w) => w.length > 2 && !_stopwords.contains(w))
-          .toList();
-
-      final groq = await _ai.isGroq();
-      // Only use matched-only mode if we have real item-name keywords.
-      // If keywords is empty after stopword filtering the user asked a general
-      // question — fall back to the alphabetical slice so the AI still has data.
-      final hasItemKeywords = keywords.isNotEmpty;
-      final charBudget = groq ? (hasItemKeywords ? 12000 : 4000) : 20000;
-      final matchedOnly = groq && hasItemKeywords;
-
-      // Get catalog, but if matchedOnly returns nothing (no item matched),
-      // fall back to the general slice so the AI isn't left with empty context.
-      String catalog = await widget.db.catalogContextBlob(
-        charBudget: charBudget,
-        keywords: keywords,
-        matchedOnly: matchedOnly,
-      );
-      if (catalog.trim() == '(catalog empty)' || catalog.trim().isEmpty) {
-        catalog = await widget.db.catalogContextBlob(
-          charBudget: groq ? 4000 : 20000,
-          keywords: const [],
-          matchedOnly: false,
-        );
-      }
+      // Full compressed catalog — all items including ship parts, ~8x smaller
+      // than verbose format so the entire catalog fits within token limits.
+      final catalog = await widget.db.catalogContextBlob();
       final logs = await widget.db.recentLogs(limit: 10);
       final logText = logs
           .map((e) => '${e.itemName}: ${e.price} aUEC @ ${e.loggedAt.toIso8601String()} (${e.logType})')
@@ -92,16 +50,23 @@ class _AiChatPageState extends State<AiChatPage> {
 
       final system = '''
 You help with Star Citizen trading questions using ONLY the local context below.
-Currency is aUEC. If the context does not contain the answer, say you do not have that data locally and suggest logging prices or importing catalog data.
+Currency is aUEC. If the context does not contain the answer, say so.
 Do not claim live or online prices.
 
-LOCAL CATALOG (partial, imported snapshot):
+CATALOG FORMAT: ItemName:MINBUYb/MAXSELLs[Location1,Location2,...]
+b=buy price (player pays), s=sell price (player receives), -=not available, prices in aUEC.
+
+FULL CATALOG:
 $catalog
 
 RECENT USER LOGS:
 $logText
 
+${rareGunsContextBlob()}
+
 ${rareArmorContextBlob()}
+
+${rareMaterialsContextBlob()}
 ''';
 
       final reply = await _ai.completeChat(

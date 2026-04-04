@@ -29,6 +29,36 @@ jobs:
       - name: Overwrite AndroidManifest with our version (ensures INTERNET permission)
         run: cp android_manifest/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
+      - name: Generate StarMarket launcher icon
+        run: |
+          pip install Pillow --break-system-packages
+          python3 << 'PYEOF'
+          from PIL import Image, ImageDraw
+          import os
+
+          sizes = [48, 72, 96, 144, 192]
+          folders = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
+
+          for size, folder in zip(sizes, folders):
+              img = Image.new('RGBA', (size, size), (8, 12, 20, 255))
+              draw = ImageDraw.Draw(img)
+              m = size // 8
+              cx, cy = size // 2, size // 2
+              pts = [(cx, m), (size-m, cy), (cx, size-m), (m, cy)]
+              draw.polygon(pts, fill=(0, 40, 60, 200))
+              draw.line(pts + [pts[0]], fill=(0, 212, 255, 255), width=max(1, size//32))
+              lw = max(1, size//48)
+              draw.line([(cx, m+lw*3), (cx, size-m-lw*3)], fill=(0, 212, 255, 160), width=lw)
+              draw.line([(m+lw*3, cy), (size-m-lw*3, cy)], fill=(0, 212, 255, 160), width=lw)
+              r = size // 10
+              draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(0, 212, 255, 255))
+              out = f'android/app/src/main/res/mipmap-{folder}'
+              os.makedirs(out, exist_ok=True)
+              img.save(f'{out}/ic_launcher.png')
+              img.save(f'{out}/ic_launcher_round.png')
+              print(f'Generated {size}x{size} icon for {folder}')
+          PYEOF
+
       - run: flutter pub get
 
       - run: flutter build apk --release

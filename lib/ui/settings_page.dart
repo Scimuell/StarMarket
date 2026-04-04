@@ -356,21 +356,31 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             Row(
               children: [
-                FilledButton(
-                  onPressed: _saveAi,
-                  child: const Text('Save AI settings'),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _saveAi,
+                    child: const Text('SAVE AI SETTINGS'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _fillGroqDefaults,
+                    icon: const Icon(Icons.bolt, size: 14),
+                    label: const Text('GROQ PRESET'),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _fillGroqDefaults,
-                  icon: const Icon(Icons.bolt, size: 16),
-                  label: const Text('Groq'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _fillOpenAiDefaults,
-                  icon: const Icon(Icons.smart_toy_outlined, size: 16),
-                  label: const Text('OpenAI'),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _fillOpenAiDefaults,
+                    icon: const Icon(Icons.smart_toy_outlined, size: 14),
+                    label: const Text('OPENAI PRESET'),
+                  ),
                 ),
               ],
             ),

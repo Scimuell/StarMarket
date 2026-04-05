@@ -132,18 +132,30 @@ class SupabaseService {
 
   // Maps common player shorthand to actual location strings in the DB
   static const _locationAliases = <String, List<String>>{
-    'orison': ['orison', 'crusader'],
+    // Stanton - Hurston
     'lorville': ['lorville', 'hurston'],
-    'new babbage': ['new babbage', 'microtech'],
-    'area18': ['area18', 'area 18', 'arccorp'],
-    'grim hex': ['grim hex', 'yela'],
-    'pyro': ['pyro', 'checkmate'],
+    'hurston': ['lorville', 'hurston', 'everus'],
     'everus': ['everus harbor'],
-    'port tressler': ['port tressler'],
-    'baijini': ['baijini'],
-    'shubin': ['shubin'],
-    'dumpers': ['dumper'],
+    'hdms': ['hdms'],
+    // Stanton - Crusader
+    'orison': ['orison', 'crusader', 'seraphim'],
+    'crusader': ['orison', 'crusader', 'seraphim', 'cellin', 'daymar', 'yela'],
+    'grim hex': ['grim hex', 'yela'],
+    // Stanton - ArcCorp
+    'area18': ['area18', 'area 18', 'arccorp'],
+    'arccorp': ['area18', 'area 18', 'arccorp', 'baijini', 'lyria', 'wala'],
+    'baijini': ['baijini point'],
     'casaba': ['casaba'],
+    'dumpers': ['dumper'],
+    // Stanton - microTech
+    'new babbage': ['new babbage', 'microtech'],
+    'microtech': ['new babbage', 'microtech', 'tressler', 'calliope', 'clio'],
+    'port tressler': ['port tressler'],
+    // Pyro system (separate!)
+    'pyro': ['pyro', 'checkmate', 'ruin station', 'orbituary'],
+    'checkmate': ['checkmate station'],
+    'ruin': ['ruin station'],
+    'orbituary': ['orbituary'],
   };
 
   static const _stopWords = {

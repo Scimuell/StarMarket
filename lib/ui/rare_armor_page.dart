@@ -183,6 +183,17 @@ class _RareArmorPageState extends State<RareArmorPage> {
   String _filter = '';
   String _rarityFilter = 'All';
 
+
+  static int _rarityOrder(String rarity) {
+    switch (rarity) {
+      case 'Boss Loot': return 0;
+      case 'Very Rare': return 1;
+      case 'Rare': return 2;
+      case 'Uncommon': return 3;
+      case 'Common': return 4;
+      default: return 5;
+    }
+  }
   Color _armorChipColor(String r, BuildContext context) {
     switch (r) {
       case 'Boss Loot': return const Color(0xFFFF6B35);
@@ -198,7 +209,7 @@ class _RareArmorPageState extends State<RareArmorPage> {
     final cyan = Theme.of(context).colorScheme.primary;
     final outline = Theme.of(context).colorScheme.outline;
 
-    final filtered = _kRareArmors.where((a) {
+    final filtered = [..._kRareArmors].where((a) {
       final matchesText = _filter.isEmpty ||
           a.name.toLowerCase().contains(_filter) ||
           a.type.toLowerCase().contains(_filter) ||
@@ -206,7 +217,7 @@ class _RareArmorPageState extends State<RareArmorPage> {
           a.locations.any((l) => l.name.toLowerCase().contains(_filter));
       final matchesRarity = _rarityFilter == 'All' || a.rarity == _rarityFilter;
       return matchesText && matchesRarity;
-    }).toList();
+    }).toList()..sort((a, b) => _rarityOrder(a.rarity).compareTo(_rarityOrder(b.rarity)));
 
     return Scaffold(
       body: Column(

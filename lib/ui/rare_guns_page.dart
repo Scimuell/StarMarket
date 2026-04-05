@@ -122,6 +122,43 @@ const _kRareGuns = [
       _Location('Distribution Centers (various)', 'Loot crates and NPC drops.', _Risk.medium),
     ],
   ),
+  _GunEntry(
+    name: 'Killshot Rifle',
+    type: 'Assault Rifle',
+    rarity: 'Very Rare',
+    manufacturer: 'Gemini',
+    description:
+        'One of the most hyped weapons in Star Citizen. High-calibre ballistic AR with exceptional stopping power. Loot-only — cannot be purchased anywhere. Extremely rare drop.',
+    locations: [
+      _Location('Checkmate Station – Contested Zone', 'Boss and elite NPC loot pool.', _Risk.extreme),
+      _Location('Pyro High-Tier Derelict Outposts', 'Very rare crate spawn across Pyro.', _Risk.high),
+      _Location('ASD Onyx Research Facilities', 'Occasional high-tier loot room spawn.', _Risk.high),
+    ],
+  ),
+  _GunEntry(
+    name: 'LH86 Pistol',
+    type: 'Pistol',
+    rarity: 'Rare',
+    manufacturer: 'Kastak Arms',
+    description:
+        'Laser pistol with a high fire rate. Rare find but useful as a sidearm. Drops off mid-to-high tier NPCs.',
+    locations: [
+      _Location('Distribution Centers (various)', 'NPC drops and loot crates.', _Risk.medium),
+      _Location('ASD Facilities', 'Loot room spawn.', _Risk.high),
+    ],
+  ),
+  _GunEntry(
+    name: 'Animus Missile Launcher',
+    type: 'Launcher',
+    rarity: 'Very Rare',
+    manufacturer: 'Apocalypse Arms',
+    description:
+        'Ground-based rocket launcher. Devastating against vehicles and groups. Extremely rare — one of the hardest weapons to find in the game.',
+    locations: [
+      _Location('Checkmate CZ Boss', 'Rare boss loot drop.', _Risk.extreme),
+      _Location('Pyro Contested Zones', 'Very low chance outlaw loot.', _Risk.extreme),
+    ],
+  ),
 ];
 
 String rareGunsContextBlob() {
@@ -189,7 +226,7 @@ class _RareGunsPageState extends State<RareGunsPage> {
     final cyan = Theme.of(context).colorScheme.primary;
     final outline = Theme.of(context).colorScheme.outline;
 
-    final filtered = _kRareGuns.where((g) {
+    final filtered = [..._kRareGuns].where((g) {
       final matchesText = _filter.isEmpty ||
           g.name.toLowerCase().contains(_filter) ||
           g.type.toLowerCase().contains(_filter) ||
@@ -197,7 +234,7 @@ class _RareGunsPageState extends State<RareGunsPage> {
           g.locations.any((l) => l.name.toLowerCase().contains(_filter));
       final matchesRarity = _rarityFilter == 'All' || g.rarity == _rarityFilter;
       return matchesText && matchesRarity;
-    }).toList();
+    }).toList()..sort((a, b) => _rarityOrder(a.rarity).compareTo(_rarityOrder(b.rarity)));
 
     return Scaffold(
       body: Column(
@@ -263,6 +300,17 @@ class _RareGunsPageState extends State<RareGunsPage> {
     );
   }
 
+
+  static int _rarityOrder(String rarity) {
+    switch (rarity) {
+      case 'Boss Loot': return 0;
+      case 'Very Rare': return 1;
+      case 'Rare': return 2;
+      case 'Uncommon': return 3;
+      case 'Common': return 4;
+      default: return 5;
+    }
+  }
   Color _chipColor(String r, BuildContext context) {
     switch (r) {
       case 'Very Rare': return const Color(0xFFB44FFF);

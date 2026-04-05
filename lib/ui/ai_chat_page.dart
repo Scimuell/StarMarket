@@ -76,17 +76,35 @@ If the context does not contain the answer, say so clearly.
 Do not make up prices or locations. Do not claim live data.
 $sourceNote
 
-LOCATION KNOWLEDGE:
-- Orison = Crusader (gas giant), Stanton system
-- Lorville = Hurston (planet), Stanton system  
-- New Babbage = microTech (planet), Stanton system
-- Area18 = ArcCorp (planet), Stanton system
-- Grim HEX = Yela moon, Stanton system
-- Everus Harbor = Hurston orbit station
-- Port Tressler = microTech orbit station
-- Baijini Point = ArcCorp orbit station
-- Pyro = separate star system
-When asked about closest location to X, look at location names in catalog for terminals matching that planet.
+STAR CITIZEN LOCATION MAP:
+STANTON SYSTEM:
+  Hurston (planet): Lorville city (TDD, shops), HDMS outposts on moons
+    Moons: Aberdeen, Arial, Ita, Magda
+    Orbit: Everus Harbor station
+  Crusader (gas giant): Orison city (floating platforms), Crusader Industries
+    Moons: Cellin, Daymar, Yela (Grim HEX station at Yela)
+    Orbit: Seraphim Station
+  ArcCorp (planet): Area18 city (Casaba, Dumper's Depot, shops)
+    Moons: Lyria, Wala
+    Orbit: Baijini Point station
+  microTech (planet): New Babbage city (shops, TDD)
+    Moons: Calliope, Clio, Euterpe
+    Orbit: Port Tressler station
+  L-Points: Rest Stop stations (CRU-L1, HUR-L1, HUR-L2, ARC-L1, MIC-L1, etc.)
+
+PYRO SYSTEM (separate from Stanton, no quantum link):
+  Stations: Checkmate Station, Ruin Station, Orbituary, Pyro Gateway
+  Pyro I-VI planets — all hostile, high risk
+  NOTE: Ruin Station is in PYRO, NOT near Lorville or Hurston.
+
+When user asks "closest to X":
+- Orison/Crusader → look for "orison", "crusader", "seraphim"
+- Lorville/Hurston → look for "lorville", "hurston", "everus"
+- Area18/ArcCorp → look for "area18", "arccorp", "baijini", "casaba", "dumper"
+- New Babbage/microTech → look for "new babbage", "microtech", "tressler"
+- Grim HEX → look for "grim hex", "yela"
+- Pyro → look for "pyro", "checkmate", "ruin", "orbituary"
+Do NOT confuse systems. Pyro locations are only reachable from Pyro.
 
 Ship components (shields, quantum drives, coolers, missiles, ship weapons) are excluded.
 If asked about ship parts, tell the user to check the Market tab directly.

@@ -29,44 +29,10 @@ jobs:
       - name: Overwrite AndroidManifest with our version (ensures INTERNET permission)
         run: cp android_manifest/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
-      - name: Generate StarMarket launcher icon
-        run: |
-          pip install Pillow --break-system-packages
-          python3 << 'PYEOF'
-          from PIL import Image, ImageDraw
-          import os
-
-          sizes = [48, 72, 96, 144, 192]
-          folders = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
-
-          for size, folder in zip(sizes, folders):
-              # Transparent background
-              img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-              draw = ImageDraw.Draw(img)
-              m = size // 7
-              cx, cy = size // 2, size // 2
-              # Dark fill with slight transparency
-              pts = [(cx, m), (size-m, cy), (cx, size-m), (m, cy)]
-              draw.polygon(pts, fill=(8, 12, 20, 230))
-              # Bright cyan border
-              stroke = max(2, size//24)
-              draw.line(pts + [pts[0]], fill=(0, 212, 255, 255), width=stroke)
-              # Inner cross lines
-              lw = max(1, size//40)
-              inner_m = m + stroke * 2
-              draw.line([(cx, inner_m), (cx, size-inner_m)], fill=(0, 212, 255, 120), width=lw)
-              draw.line([(inner_m, cy), (size-inner_m, cy)], fill=(0, 212, 255, 120), width=lw)
-              # Center dot
-              r = size // 9
-              draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(0, 212, 255, 255))
-              out = f'android/app/src/main/res/mipmap-{folder}'
-              os.makedirs(out, exist_ok=True)
-              img.save(f'{out}/ic_launcher.png')
-              img.save(f'{out}/ic_launcher_round.png')
-              print(f'Generated {size}x{size} icon for {folder}')
-          PYEOF
-
       - run: flutter pub get
+
+      - name: Generate launcher icons from checked-in asset
+        run: dart run flutter_launcher_icons
 
       - run: flutter build apk --release
 

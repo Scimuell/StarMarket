@@ -29,10 +29,65 @@ jobs:
       - name: Overwrite AndroidManifest with our version (ensures INTERNET permission)
         run: cp android_manifest/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
 
-      - run: flutter pub get
+      - name: Generate StarMarket launcher icon
+        run: |
+          pip install Pillow --break-system-packages
+          python3 << 'PYEOF'
+          from PIL import Image, ImageDraw
+          import os
 
-      - name: Generate launcher icons from checked-in asset
-        run: dart run flutter_launcher_icons
+          sizes = [48, 72, 96, 144, 192]
+          folders = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
+
+          for size, folder in zip(sizes, folders):
+              img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+              draw = ImageDraw.Draw(img)
+
+              pad = max(1, size // 18)
+              rim = max(2, size // 26)
+              center = size // 2
+              bg = (15, 20, 28, 255)
+              cyan = (0, 212, 255, 255)
+              white = (255, 255, 255, 255)
+
+              draw.ellipse((pad, pad, size - pad, size - pad), fill=bg)
+              draw.ellipse((pad + rim, pad + rim, size - pad - rim, size - pad - rim), outline=cyan, width=rim)
+
+              star = [
+                  (center, int(size * 0.17)),
+                  (int(size * 0.60), int(size * 0.43)),
+                  (int(size * 0.83), center),
+                  (int(size * 0.60), int(size * 0.57)),
+                  (center, int(size * 0.83)),
+                  (int(size * 0.40), int(size * 0.57)),
+                  (int(size * 0.17), center),
+                  (int(size * 0.40), int(size * 0.43)),
+              ]
+              draw.polygon(star, fill=white)
+
+              cut = [
+                  (center, int(size * 0.29)),
+                  (int(size * 0.54), int(size * 0.46)),
+                  (int(size * 0.72), center),
+                  (int(size * 0.54), int(size * 0.54)),
+                  (center, int(size * 0.72)),
+                  (int(size * 0.46), int(size * 0.54)),
+                  (int(size * 0.29), center),
+                  (int(size * 0.46), int(size * 0.46)),
+              ]
+              draw.polygon(cut, fill=bg)
+
+              dot_r = max(2, size // 15)
+              draw.ellipse((center - dot_r, center - dot_r, center + dot_r, center + dot_r), fill=white)
+
+              out = f'android/app/src/main/res/mipmap-{folder}'
+              os.makedirs(out, exist_ok=True)
+              img.save(f'{out}/ic_launcher.png')
+              img.save(f'{out}/ic_launcher_round.png')
+              print(f'Generated {size}x{size} icon for {folder}')
+          PYEOF
+
+      - run: flutter pub get
 
       - run: flutter build apk --release
 

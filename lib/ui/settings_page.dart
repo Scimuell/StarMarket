@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../db/app_db.dart';
 import '../services/ai_service.dart';
@@ -18,6 +19,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderStateMixin {
+  static final Uri _paypalUri = Uri.parse('https://paypal.me/scimuel');
   late final TabController _tabs;
   final _ai = AiService();
   final _priceApi = PriceCatalogApiService();
@@ -222,6 +224,13 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
     }
   }
 
+  Future<void> _openSupportLink() async {
+    final opened = await launchUrl(_paypalUri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _snack('Could not open ${_paypalUri.toString()}');
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -320,6 +329,8 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
           onPressed: _saveAi,
           child: const Text('SAVE AI SETTINGS'),
         )),
+        const SizedBox(height: 24),
+        _supportCard(),
       ],
     );
   }
@@ -477,6 +488,47 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
         _Step('5', 'Tap Upload — only needed once per UEX sync'),
         if (_busy) const Padding(padding: EdgeInsets.only(top: 16), child: Center(child: CircularProgressIndicator())),
       ],
+    );
+  }
+
+  Widget _supportCard() {
+    final cyan = Theme.of(context).colorScheme.primary;
+    final outline = Theme.of(context).colorScheme.outline;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: outline),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Label('SUPPORT'),
+          const SizedBox(height: 10),
+          Text(
+            'If this app helps you, you can support it here.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openSupportLink,
+              icon: const Icon(Icons.coffee_outlined, size: 16),
+              label: const Text('BUY ME A COFFEE'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            _paypalUri.toString(),
+            style: TextStyle(fontSize: 11, color: cyan),
+          ),
+        ],
+      ),
     );
   }
 }

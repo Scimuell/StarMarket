@@ -179,6 +179,11 @@ class SupabaseService {
     'checkmate': ['checkmate station'],
     'ruin': ['ruin station'],
     'orbituary': ['orbituary'],
+    'pyro gateway': ['pyro gateway'],
+    // Nyx system
+    'nyx': ['nyx', 'delamar', 'levski'],
+    'delamar': ['delamar', 'levski'],
+    'levski': ['levski', 'delamar'],
   };
 
   static const _stopWords = {
@@ -318,7 +323,7 @@ class SupabaseService {
           .take(6)
           .toList();
 
-      if (words.isEmpty && locationTerms.isEmpty) return '';
+      if (words.isEmpty && locationTerms.isEmpty) return locationContext;
 
       final allRows = <Map<String, dynamic>>[];
 
@@ -344,7 +349,7 @@ class SupabaseService {
         }
       }
 
-      if (allRows.isEmpty) return '';
+      if (allRows.isEmpty) return locationContext;
 
       // Deduplicate
       final seen = <String>{};

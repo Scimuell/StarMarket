@@ -61,7 +61,7 @@ class DashboardPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Community Built Starcitezen Cataloge Companion',
+                    'A Community-Built Star Citizen Catalogue Companion',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 11,

@@ -46,17 +46,13 @@ class _AiChatPageState extends State<AiChatPage> {
       final supaEnabled = await _supa.isEnabled() && await _supa.isConfigured();
 
       if (supaEnabled) {
-        // Smart mode: only fetch rows relevant to the query from Supabase
-        // This keeps tokens minimal — only sends what OpenAI needs
         final supaResult = await _supa.searchForAiContext(text);
         if (supaResult.isNotEmpty) {
           catalog = supaResult;
         } else {
-          // Fallback to local compressed if Supabase returned nothing
           catalog = await widget.db.catalogContextBlob();
         }
       } else {
-        // No Supabase — use full local compressed catalog
         catalog = await widget.db.catalogContextBlob();
       }
 
@@ -99,17 +95,23 @@ STANTON SYSTEM:
 
 PYRO SYSTEM (separate from Stanton, no quantum link):
   Stations: Checkmate Station, Ruin Station, Orbituary, Pyro Gateway
-  Pyro I-VI planets — all hostile, high risk
-  NOTE: Ruin Station is in PYRO, NOT near Lorville or Hurston.
+  Pyro I-VI planets - all hostile, high risk
+  NOTE: Ruin Station is in Pyro, not near Lorville or Hurston.
+
+NYX SYSTEM:
+  Delamar: asteroid planetoid containing Levski
+  Levski: landing zone in Nyx, not in Stanton
+  NOTE: Nyx is a separate system, so do not treat Levski as close to Stanton or Pyro by default.
 
 When user asks "closest to X":
-- Orison/Crusader → look for "orison", "crusader", "seraphim"
-- Lorville/Hurston → look for "lorville", "hurston", "everus"
-- Area18/ArcCorp → look for "area18", "arccorp", "baijini", "casaba", "dumper"
-- New Babbage/microTech → look for "new babbage", "microtech", "tressler"
-- Grim HEX → look for "grim hex", "yela"
-- Pyro → look for "pyro", "checkmate", "ruin", "orbituary"
-Do NOT confuse systems. Pyro locations are only reachable from Pyro.
+- Orison/Crusader -> look for "orison", "crusader", "seraphim"
+- Lorville/Hurston -> look for "lorville", "hurston", "everus"
+- Area18/ArcCorp -> look for "area18", "arccorp", "baijini", "casaba", "dumper"
+- New Babbage/microTech -> look for "new babbage", "microtech", "tressler"
+- Grim HEX -> look for "grim hex", "yela"
+- Pyro -> look for "pyro", "checkmate", "ruin", "orbituary", "pyro gateway"
+- Nyx -> look for "nyx", "delamar", "levski"
+Do not confuse systems. Pyro and Nyx are separate from Stanton.
 
 Ship components (shields, quantum drives, coolers, missiles, ship weapons) are excluded.
 If asked about ship parts, tell the user to check the Market tab directly.
@@ -140,8 +142,9 @@ ${rareMaterialsContextBlob()}
           ..._msgs
               .where((m) => m.role != 'err')
               .map((m) => AiMessage(
-                  role: m.role == 'user' ? 'user' : 'assistant',
-                  content: m.text)),
+                    role: m.role == 'user' ? 'user' : 'assistant',
+                    content: m.text,
+                  )),
         ],
       );
 
@@ -186,7 +189,8 @@ ${rareMaterialsContextBlob()}
                     ? cyan.withValues(alpha: 0.08)
                     : Theme.of(context).colorScheme.surface,
                 border: Border.all(
-                    color: supaOn ? cyan.withValues(alpha: 0.4) : outline),
+                  color: supaOn ? cyan.withValues(alpha: 0.4) : outline,
+                ),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
@@ -200,14 +204,13 @@ ${rareMaterialsContextBlob()}
                   Expanded(
                     child: Text(
                       supaOn
-                          ? 'Supabase AI mode — smart context, minimal tokens'
-                          : 'Local mode — full catalog sent per query',
+                          ? 'Supabase AI mode - smart context, minimal tokens'
+                          : 'Local mode - full catalog sent per query',
                       style: TextStyle(
-                          fontSize: 10,
-                          color: supaOn
-                              ? cyan
-                              : Theme.of(context).colorScheme.onSurface,
-                          letterSpacing: 0.5),
+                        fontSize: 10,
+                        color: supaOn ? cyan : Theme.of(context).colorScheme.onSurface,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ],
@@ -226,28 +229,29 @@ ${rareMaterialsContextBlob()}
               final isUser = m.role == 'user';
               final isErr = m.role == 'err';
               return Align(
-                alignment:
-                    isUser ? Alignment.centerRight : Alignment.centerLeft,
+                alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(12),
                   constraints: BoxConstraints(
-                      maxWidth: MediaQuery.sizeOf(context).width * 0.86),
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.86,
+                  ),
                   decoration: BoxDecoration(
                     color: isErr
                         ? Theme.of(context).colorScheme.errorContainer
                         : isUser
                             ? Theme.of(context).colorScheme.primaryContainer
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: SelectableText(m.text,
-                      style: TextStyle(
-                          color: isErr
-                              ? Theme.of(context).colorScheme.onErrorContainer
-                              : null)),
+                  child: SelectableText(
+                    m.text,
+                    style: TextStyle(
+                      color: isErr
+                          ? Theme.of(context).colorScheme.onErrorContainer
+                          : null,
+                    ),
+                  ),
                 ),
               );
             },

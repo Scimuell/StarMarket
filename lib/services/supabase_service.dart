@@ -175,11 +175,12 @@ class SupabaseService {
     'microtech': ['new babbage', 'microtech', 'tressler', 'calliope', 'clio'],
     'port tressler': ['port tressler'],
     // Pyro system (separate!)
-    'pyro': ['pyro', 'checkmate', 'ruin station', 'orbituary'],
+    'pyro': ['pyro', 'checkmate', 'ruin station', 'orbituary', 'pyro gateway', 'stanton gateway'],
     'checkmate': ['checkmate station'],
     'ruin': ['ruin station'],
     'orbituary': ['orbituary'],
     'pyro gateway': ['pyro gateway'],
+    'stanton gateway': ['stanton gateway', 'pyro gateway'],
     // Nyx system
     'nyx': ['nyx', 'delamar', 'levski'],
     'delamar': ['delamar', 'levski'],
@@ -202,6 +203,11 @@ class SupabaseService {
       }
     }
     return locationTerms.toSet().toList();
+  }
+
+  bool _matchesLocationTerms(String location, List<String> locationTerms) {
+    final loc = location.toLowerCase();
+    return locationTerms.any((t) => loc.contains(t));
   }
 
   Future<String> _buildLocationContext(
@@ -357,6 +363,18 @@ class SupabaseService {
       for (final r in allRows) {
         final key = '${r['item_name']}|${r['location']}';
         if (seen.add(key)) deduped.add(r);
+      }
+
+      // If a system/location was named and we found matching rows, keep only those.
+      if (locationTerms.isNotEmpty) {
+        final matchingOnly = deduped
+            .where((r) => _matchesLocationTerms(r['location'] as String? ?? '', locationTerms))
+            .toList();
+        if (matchingOnly.isNotEmpty) {
+          deduped
+            ..clear()
+            ..addAll(matchingOnly);
+        }
       }
 
       // Sort: if location terms present, put matching locations first

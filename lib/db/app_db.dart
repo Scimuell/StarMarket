@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 int? _asAuec(dynamic v) {
   if (v == null) return null;
@@ -112,16 +114,52 @@ class AppDatabase {
   final Database _db;
 
   static Future<AppDatabase> open() async {
-    final dbRoot = await getDatabasesPath();
-    final path = p.join(dbRoot, 'starcitizen_trader.sqlite');
-    final db = await openDatabase(
+    final db = await _openPlatformDatabase();
+    return AppDatabase._(db);
+  }
+
+  static Future<Database> _openPlatformDatabase() async {
+    final path = await _resolveDatabasePath();
+    if (Platform.isWindows) {
+      sqfliteFfiInit();
+      return databaseFactoryFfi.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onOpen: (db) async {
+            await db.execute('PRAGMA foreign_keys = ON');
+          },
+          onCreate: _createSchema,
+        ),
+      );
+    }
+    return openDatabase(
       path,
       version: 1,
       onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
-      onCreate: (db, version) async {
-        await db.execute('''
+      onCreate: _createSchema,
+    );
+  }
+
+  static Future<String> _resolveDatabasePath() async {
+    if (Platform.isWindows) {
+      final base = Platform.environment['LOCALAPPDATA'] ??
+          Platform.environment['APPDATA'] ??
+          Directory.systemTemp.path;
+      final dir = Directory(p.join(base, 'StarMarket'));
+      if (!dir.existsSync()) {
+        dir.createSync(recursive: true);
+      }
+      return p.join(dir.path, 'starcitizen_trader.sqlite');
+    }
+    final dbRoot = await getDatabasesPath();
+    return p.join(dbRoot, 'starcitizen_trader.sqlite');
+  }
+
+  static Future<void> _createSchema(Database db, int version) async {
+    await db.execute('''
 CREATE TABLE catalog_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -129,7 +167,7 @@ CREATE TABLE catalog_items (
   extra TEXT
 );
 ''');
-        await db.execute('''
+    await db.execute('''
 CREATE TABLE catalog_offers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id INTEGER NOT NULL,
@@ -139,9 +177,9 @@ CREATE TABLE catalog_offers (
   FOREIGN KEY (item_id) REFERENCES catalog_items (id) ON DELETE CASCADE
 );
 ''');
-        await db.execute('CREATE INDEX idx_catalog_offers_item ON catalog_offers(item_id);');
+    await db.execute('CREATE INDEX idx_catalog_offers_item ON catalog_offers(item_id);');
 
-        await db.execute('''
+    await db.execute('''
 CREATE TABLE price_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_name TEXT NOT NULL,
@@ -152,10 +190,10 @@ CREATE TABLE price_logs (
   log_type TEXT NOT NULL
 );
 ''');
-        await db.execute('CREATE INDEX idx_price_logs_item ON price_logs(item_name);');
-        await db.execute('CREATE INDEX idx_price_logs_time ON price_logs(logged_at);');
+    await db.execute('CREATE INDEX idx_price_logs_item ON price_logs(item_name);');
+    await db.execute('CREATE INDEX idx_price_logs_time ON price_logs(logged_at);');
 
-        await db.execute('''
+    await db.execute('''
 CREATE TABLE price_alerts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_name TEXT NOT NULL,
@@ -164,7 +202,7 @@ CREATE TABLE price_alerts (
 );
 ''');
 
-        await db.execute('''
+    await db.execute('''
 CREATE TABLE trades (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_name TEXT NOT NULL,
@@ -177,9 +215,6 @@ CREATE TABLE trades (
   notes TEXT
 );
 ''');
-      },
-    );
-    return AppDatabase._(db);
   }
 
   Future<void> close() => _db.close();

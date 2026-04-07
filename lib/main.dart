@@ -11,11 +11,15 @@ Future<void> main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  runApp(const StarcitizenTraderApp());
+  final db = await AppDatabase.open();
+  await seedCatalogIfEmpty(db);
+  runApp(StarcitizenTraderApp(db: db));
 }
 
 class StarcitizenTraderApp extends StatelessWidget {
-  const StarcitizenTraderApp({super.key});
+  const StarcitizenTraderApp({super.key, required this.db});
+
+  final AppDatabase db;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,7 @@ class StarcitizenTraderApp extends StatelessWidget {
       title: 'StarMarket',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
-      home: const _BootstrapScreen(),
+      home: HomeShell(db: db),
     );
   }
 
@@ -244,51 +248,6 @@ class StarcitizenTraderApp extends StatelessWidget {
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: cyan),
       dividerTheme: const DividerThemeData(color: border, thickness: 1, space: 1),
       iconTheme: const IconThemeData(color: onSurface),
-    );
-  }
-}
-
-class _BootstrapScreen extends StatefulWidget {
-  const _BootstrapScreen();
-
-  @override
-  State<_BootstrapScreen> createState() => _BootstrapScreenState();
-}
-
-class _BootstrapScreenState extends State<_BootstrapScreen> {
-  late final Future<AppDatabase> _dbFuture = _openDb();
-
-  Future<AppDatabase> _openDb() async {
-    final db = await AppDatabase.open();
-    await seedCatalogIfEmpty(db);
-    return db;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<AppDatabase>(
-      future: _dbFuture,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snap.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Startup failed: ${snap.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          );
-        }
-        return HomeShell(db: snap.data!);
-      },
     );
   }
 }

@@ -9,7 +9,7 @@
   #define SourceDir "build\\windows\\x64\\runner\\Release"
 #endif
 #ifndef IconFile
-  #define IconFile "windows\\runner\\resources\\app_icon.ico"
+  #define IconFile "..\\windows\\runner\\resources\\app_icon.ico"
 #endif
 
 [Setup]
